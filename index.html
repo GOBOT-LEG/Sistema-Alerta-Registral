@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistema Alerta Registral</title>
-  <meta name="description" content="Sistema de monitoreo y alertas tempranas ante movimientos registrales de predios y vehículos." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <title>GLOBAL FACTORING — Sistema Alerta Registral</title>
+  <meta name="description" content="Sistema de control y alertas registrales de GLOBAL FACTORING: monitoreo de partidas de predios, vehículos y maquinaria de clientes, clasificadas por riesgo alto, medio y bajo." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏦</text></svg>" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -14,16 +14,19 @@
   <header class="header">
     <div class="container header-inner">
       <a href="#inicio" class="logo">
-        <span class="logo-icon">🛡️</span>
-        <span class="logo-text">Alerta<strong>Registral</strong></span>
+        <span class="logo-icon">🏦</span>
+        <span class="logo-text">
+          Global<strong>Factoring</strong>
+          <span class="logo-sub">Alerta Registral</span>
+        </span>
       </a>
 
       <nav class="nav" id="nav">
         <a href="#inicio">Inicio</a>
-        <a href="#servicios">Servicios</a>
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="#demo">Registrar alerta</a>
-        <a href="#equipo">Equipo</a>
+        <a href="#panel">Panel</a>
+        <a href="#registro">Registro</a>
+        <a href="#alertas">Alertas</a>
+        <a href="#nosotros">Nosotros</a>
       </nav>
 
       <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
@@ -33,149 +36,273 @@
   <!-- ===== PORTADA ===== -->
   <section class="hero" id="inicio">
     <div class="container">
-      <span class="hero-badge">🔔 Vigilancia registral 24/7</span>
-      <h1>Protege tu patrimonio con <span class="highlight">alertas registrales</span> a tiempo</h1>
+      <span class="hero-badge">🛡️ Vigilancia registral de la cartera de créditos</span>
+      <h1>Antes de que tu cliente venda sus bienes, <span class="highlight">tú ya lo sabrás</span></h1>
       <p class="hero-sub">
-        El Sistema Alerta Registral monitorea los movimientos de tus partidas registrales
-        —predios y vehículos— y te avisa de inmediato ante cualquier cambio, carga o anotación.
+        GLOBAL FACTORING monitorea las partidas registrales de predios, vehículos y maquinaria
+        de sus clientes con crédito vigente. Cada movimiento —venta, embargo, hipoteca o
+        anotación— se registra y se clasifica por nivel de riesgo: alto, medio o bajo.
       </p>
       <div class="hero-actions">
-        <a href="#demo" class="btn btn-primary">Registrar una alerta</a>
+        <a href="#registro" class="btn btn-primary">Registrar una alerta</a>
         <a href="#como-funciona" class="btn btn-outline">¿Cómo funciona?</a>
       </div>
 
       <div class="hero-stats">
-        <div class="stat"><strong>24/7</strong><span>Monitoreo continuo</span></div>
-        <div class="stat"><strong>&lt; 2 min</strong><span>Registro de alerta</span></div>
-        <div class="stat"><strong>100%</strong><span>Trazabilidad de movimientos</span></div>
+        <div class="stat"><strong>24/7</strong><span>Vigilancia de partidas</span></div>
+        <div class="stat"><strong>3 niveles</strong><span>Riesgo: alto · medio · bajo</span></div>
+        <div class="stat"><strong>&lt; 2 min</strong><span>Registrar un movimiento</span></div>
       </div>
     </div>
   </section>
 
-  <!-- ===== SERVICIOS ===== -->
-  <section class="section" id="servicios">
+  <!-- ===== PANEL DE CONTROL ===== -->
+  <section class="section" id="panel">
     <div class="container">
-      <h2 class="section-title">Nuestros servicios</h2>
-      <p class="section-sub">Todo lo que necesitas para vigilar tus registros en un solo lugar.</p>
+      <h2 class="section-title">Panel de control</h2>
+      <p class="section-sub">Estado actual de la cartera vigilada, con semáforo de riesgo registral.</p>
 
-      <div class="grid grid-4">
-        <article class="card">
-          <div class="card-icon">🏠</div>
-          <h3>Monitoreo de predios</h3>
-          <p>Vigilamos la partida registral de tu propiedad y detectamos cualquier movimiento: cargas, gravámenes o transferencias.</p>
-        </article>
-        <article class="card">
-          <div class="card-icon">🚗</div>
-          <h3>Alertas vehiculares</h3>
-          <p>Recibe avisos ante cambios de propietario, embargos o anotaciones en la ficha registral de tu vehículo.</p>
-        </article>
-        <article class="card">
-          <div class="card-icon">📄</div>
-          <h3>Verificación de títulos</h3>
-          <p>Consulta el estado actual de una partida registral antes de firmar un contrato de compra o venta.</p>
-        </article>
-        <article class="card">
-          <div class="card-icon">🔔</div>
-          <h3>Notificaciones tempranas</h3>
-          <p>Alertas inmediatas por correo y panel web para que actúes antes de que sea tarde.</p>
-        </article>
+      <div class="panel-grid">
+        <div class="panel-card">
+          <span class="panel-icon">🧾</span>
+          <strong id="statClientes">0</strong>
+          <span>Clientes vigilados</span>
+        </div>
+        <div class="panel-card">
+          <span class="panel-icon">🏢</span>
+          <strong id="statBienes">0</strong>
+          <span>Bienes monitoreados</span>
+        </div>
+        <div class="panel-card">
+          <span class="panel-icon">🚨</span>
+          <strong id="statAlertas">0</strong>
+          <span>Alertas totales</span>
+        </div>
+        <div class="panel-card risk-alto">
+          <span class="panel-icon">🔴</span>
+          <strong id="statAlto">0</strong>
+          <span>Riesgo alto</span>
+        </div>
+        <div class="panel-card risk-medio">
+          <span class="panel-icon">🟠</span>
+          <strong id="statMedio">0</strong>
+          <span>Riesgo medio</span>
+        </div>
+        <div class="panel-card risk-bajo">
+          <span class="panel-icon">🟢</span>
+          <strong id="statBajo">0</strong>
+          <span>Riesgo bajo</span>
+        </div>
       </div>
+
+      <p class="panel-note">
+        El riesgo se sugiere automáticamente según el movimiento registral detectado
+        y puede ajustarse manualmente al registrar cada alerta.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== REGISTRO (3 PASOS) ===== -->
+  <section class="section section-alt" id="registro">
+    <div class="container">
+      <h2 class="section-title">Registro de la cartera vigilada</h2>
+      <p class="section-sub">
+        Sigue el orden: primero el cliente, después sus bienes y luego las alertas de cada partida.
+      </p>
+
+      <div class="grid grid-3">
+
+        <!-- Paso 1: Cliente -->
+        <div class="card paso">
+          <div class="paso-head">
+            <div class="step-num">1</div>
+            <h3>🧾 Cliente</h3>
+          </div>
+          <form id="formCliente" class="form">
+            <div class="field">
+              <label for="cliNombre">Nombre o razón social</label>
+              <input type="text" id="cliNombre" placeholder="Ej.: Comercial Andina S.A.C." required />
+            </div>
+            <div class="field">
+              <label for="cliDoc">RUC / DNI</label>
+              <input type="text" id="cliDoc" placeholder="Ej.: RUC 20512345678" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Registrar cliente</button>
+            <p class="form-msg" id="msgCliente"></p>
+          </form>
+          <div class="mini-list">
+            <span class="mini-title">Clientes registrados</span>
+            <div id="listaClientes"></div>
+          </div>
+        </div>
+
+        <!-- Paso 2: Bien -->
+        <div class="card paso">
+          <div class="paso-head">
+            <div class="step-num">2</div>
+            <h3>🏢 Bien del cliente</h3>
+          </div>
+          <form id="formBien" class="form">
+            <div class="field">
+              <label for="bienCliente">Cliente propietario</label>
+              <select id="bienCliente" required>
+                <option value="">Selecciona un cliente…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="bienTipo">Tipo de bien</label>
+              <select id="bienTipo" required>
+                <option value="">Selecciona una opción…</option>
+                <option value="predio">Predio (inmueble)</option>
+                <option value="vehiculo">Vehículo</option>
+                <option value="maquinaria">Maquinaria</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="bienPartida">Partida / placa registral</label>
+              <input type="text" id="bienPartida" placeholder="Ej.: 11223344 o ABC-123" required />
+            </div>
+            <div class="field">
+              <label for="bienDesc">Descripción (opcional)</label>
+              <input type="text" id="bienDesc" placeholder="Ej.: Local comercial en Miraflores" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Registrar bien</button>
+            <p class="form-msg" id="msgBien"></p>
+          </form>
+          <div class="mini-list">
+            <span class="mini-title">Bienes registrados</span>
+            <div id="listaBienes"></div>
+          </div>
+        </div>
+
+        <!-- Paso 3: Alerta -->
+        <div class="card paso">
+          <div class="paso-head">
+            <div class="step-num">3</div>
+            <h3>🚨 Alerta registral</h3>
+          </div>
+          <form id="formAlerta" class="form">
+            <div class="field">
+              <label for="alertaCliente">Cliente</label>
+              <select id="alertaCliente" required>
+                <option value="">Selecciona un cliente…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="alertaBien">Bien a vigilar</label>
+              <select id="alertaBien" required>
+                <option value="">Selecciona un bien…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="alertaMov">Movimiento detectado</label>
+              <select id="alertaMov" required>
+                <option value="">Selecciona una opción…</option>
+                <option value="venta">Venta o transferencia de propiedad</option>
+                <option value="embargo">Embargo judicial</option>
+                <option value="garantia">Hipoteca o constitución de garantía</option>
+                <option value="anotacion">Anotación o aviso informativo</option>
+                <option value="cancelacion">Cancelación de carga o gravamen</option>
+                <option value="otro">Otro movimiento</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="alertaRiesgo">Nivel de riesgo</label>
+              <select id="alertaRiesgo" required>
+                <option value="">Selecciona una opción…</option>
+                <option value="alto">🔴 Riesgo alto</option>
+                <option value="medio">🟠 Riesgo medio</option>
+                <option value="bajo">🟢 Riesgo bajo</option>
+              </select>
+              <span class="hint" id="riesgoHint">Se sugiere automáticamente según el movimiento.</span>
+            </div>
+            <div class="field">
+              <label for="alertaDetalle">Detalle (opcional)</label>
+              <textarea id="alertaDetalle" rows="2" placeholder="Ej.: se inscribió transferencia a favor de un tercero…"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Registrar alerta</button>
+            <p class="form-msg" id="msgAlerta"></p>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ALERTAS ACTIVAS ===== -->
+  <section class="section" id="alertas">
+    <div class="container">
+      <h2 class="section-title">Alertas registrales activas</h2>
+      <p class="section-sub">
+        Movimientos detectados en las partidas de los clientes de la cartera,
+        ordenados del más reciente al más antiguo.
+      </p>
+
+      <div class="toolbar">
+        <button type="button" class="btn btn-neutral btn-sm" id="btnEjemplo">↩️ Restaurar ejemplo</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnBorrar">🗑️ Borrar todo</button>
+      </div>
+
+      <p class="alert-empty" id="alertaVacia">
+        No hay alertas registradas. Crea la primera en el paso 3 del registro. 👈
+      </p>
+      <ul class="alert-list" id="listaAlertas"></ul>
     </div>
   </section>
 
   <!-- ===== CÓMO FUNCIONA ===== -->
   <section class="section section-alt" id="como-funciona">
     <div class="container">
-      <h2 class="section-title">Cómo funciona</h2>
-      <p class="section-sub">Tres pasos simples para empezar a proteger tus registros.</p>
+      <h2 class="section-title">¿Cómo funciona?</h2>
+      <p class="section-sub">El flujo de trabajo del equipo de riesgo y cobranza de GLOBAL FACTORING.</p>
 
-      <div class="grid grid-3">
+      <div class="grid grid-4">
         <div class="step">
           <div class="step-num">1</div>
-          <h3>Registra tus datos</h3>
-          <p>Ingresa el titular y la partida registral del predio o vehículo que deseas vigilar.</p>
+          <h3>Registra al cliente</h3>
+          <p>Cada cliente con crédito vigente ingresa al sistema con su razón social y RUC o DNI.</p>
         </div>
         <div class="step">
           <div class="step-num">2</div>
-          <h3>Monitoreamos el registro</h3>
-          <p>El sistema revisa de forma continua si existe algún movimiento sobre tu partida.</p>
+          <h3>Da de alta sus bienes</h3>
+          <p>Predios, vehículos y maquinaria con su partida o placa registral correspondiente.</p>
         </div>
         <div class="step">
           <div class="step-num">3</div>
-          <h3>Recibe la alerta</h3>
-          <p>Si detectamos un cambio, te notificamos al instante con el detalle del movimiento.</p>
+          <h3>Detecta el movimiento</h3>
+          <p>Cuando el registro muestra una venta, embargo, hipoteca o anotación, se crea una alerta.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <h3>Clasifica y actúa</h3>
+          <p>Cada alerta se marca como riesgo alto, medio o bajo, y cobranza actúa a tiempo.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===== REGISTRAR ALERTA (DEMO) ===== -->
-  <section class="section" id="demo">
+  <!-- ===== QUIÉNES SOMOS ===== -->
+  <section class="section" id="nosotros">
     <div class="container">
-      <h2 class="section-title">Registrar una alerta</h2>
-      <p class="section-sub">
-        Demostración funcional: las alertas se guardan en este navegador (localStorage)
-        mientras construimos la versión con base de datos.
-      </p>
+      <h2 class="section-title">Quiénes somos</h2>
+      <p class="section-sub">GLOBAL FACTORING: soluciones de liquidez y control de riesgo para empresas.</p>
 
-      <div class="demo-grid">
-        <form class="card form" id="alertForm">
-          <div class="field">
-            <label for="titular">Nombre del titular</label>
-            <input type="text" id="titular" placeholder="Ej.: María Quispe" required />
-          </div>
-          <div class="field">
-            <label for="tipo">Tipo de registro</label>
-            <select id="tipo" required>
-              <option value="">Selecciona una opción…</option>
-              <option value="Predio">Predio (inmueble)</option>
-              <option value="Vehículo">Vehículo</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="partida">Partida / placa registral</label>
-            <input type="text" id="partida" placeholder="Ej.: 12345678 o ABC-123" required />
-          </div>
-          <div class="field">
-            <label for="detalle">¿Qué movimiento deseas vigilar? (opcional)</label>
-            <textarea id="detalle" rows="3" placeholder="Ej.: gravámenes, cambio de propietario, hipoteca…"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block">Registrar alerta</button>
-          <p class="form-msg" id="formMsg"></p>
-        </form>
-
-        <div class="alerts">
-          <div class="alerts-head">
-            <h3>Mis alertas</h3>
-            <span class="badge" id="alertCount">0</span>
-          </div>
-          <p class="alert-empty" id="alertEmpty">
-            Aún no tienes alertas registradas. Crea la primera con el formulario. 👈
-          </p>
-          <ul class="alert-list" id="alertList"></ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== EQUIPO ===== -->
-  <section class="section section-alt" id="equipo">
-    <div class="container">
-      <h2 class="section-title">Equipo de desarrollo</h2>
-      <p class="section-sub">Proyecto construido en colaboración entre dos integrantes.</p>
-
-      <div class="grid grid-2">
-        <!-- ✏️ Editen sus nombres reales aquí -->
-        <div class="card member">
-          <div class="member-avatar">👩‍💻</div>
-          <h3>Integrante 1</h3>
-          <p>Liderazgo del proyecto · Desarrollo web</p>
-        </div>
-        <div class="card member">
-          <div class="member-avatar">👩‍💼</div>
-          <h3>Integrante 2</h3>
-          <p>Contenido y gestión · Documentación</p>
-        </div>
+      <div class="grid grid-3">
+        <article class="card">
+          <div class="card-icon">💰</div>
+          <h3>Factoring</h3>
+          <p>Convertimos las facturas y créditos comerciales de tu empresa en liquidez inmediata, gestionando el cobro de manera profesional.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">🤝</div>
+          <h3>Confirming</h3>
+          <p>Organizamos y aseguramos los pagos a tus proveedores, optimizando el flujo de caja y las relaciones comerciales de tu negocio.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">🛡️</div>
+          <h3>Control de riesgo crediticio</h3>
+          <p>Este sistema nace de una necesidad real: evitar que los bienes de nuestros deudores se vendan o desaparezcan antes del cobro.</p>
+        </article>
       </div>
     </div>
   </section>
@@ -183,9 +310,13 @@
   <!-- ===== PIE DE PÁGINA ===== -->
   <footer class="footer">
     <div class="container footer-inner">
-      <p><strong>🛡️ Sistema Alerta Registral</strong></p>
-      <p>Proyecto académico / demostrativo. Los datos mostrados son de ejemplo.</p>
-      <p class="copy">© <span id="year"></span> Equipo Alerta Registral · Hecho con dedicación 💜</p>
+      <p><strong>🏦 GLOBAL FACTORING</strong></p>
+      <p>Factoring · Confirming · Control de riesgo crediticio</p>
+      <p class="footer-note">
+        Herramienta de uso interno: los datos se guardan únicamente en este navegador
+        (localStorage) y no se envían a ningún servidor.
+      </p>
+      <p class="copy">© <span id="year"></span> GLOBAL FACTORING · Sistema Alerta Registral</p>
     </div>
   </footer>
 
