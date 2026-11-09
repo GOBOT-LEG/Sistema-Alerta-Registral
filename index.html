@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema Alerta Registral</title>
+  <meta name="description" content="Sistema de monitoreo y alertas tempranas ante movimientos registrales de predios y vehículos." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ===== ENCABEZADO ===== -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="#inicio" class="logo">
+        <span class="logo-icon">🛡️</span>
+        <span class="logo-text">Alerta<strong>Registral</strong></span>
+      </a>
+
+      <nav class="nav" id="nav">
+        <a href="#inicio">Inicio</a>
+        <a href="#servicios">Servicios</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#demo">Registrar alerta</a>
+        <a href="#equipo">Equipo</a>
+      </nav>
+
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
+    </div>
+  </header>
+
+  <!-- ===== PORTADA ===== -->
+  <section class="hero" id="inicio">
+    <div class="container">
+      <span class="hero-badge">🔔 Vigilancia registral 24/7</span>
+      <h1>Protege tu patrimonio con <span class="highlight">alertas registrales</span> a tiempo</h1>
+      <p class="hero-sub">
+        El Sistema Alerta Registral monitorea los movimientos de tus partidas registrales
+        —predios y vehículos— y te avisa de inmediato ante cualquier cambio, carga o anotación.
+      </p>
+      <div class="hero-actions">
+        <a href="#demo" class="btn btn-primary">Registrar una alerta</a>
+        <a href="#como-funciona" class="btn btn-outline">¿Cómo funciona?</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat"><strong>24/7</strong><span>Monitoreo continuo</span></div>
+        <div class="stat"><strong>&lt; 2 min</strong><span>Registro de alerta</span></div>
+        <div class="stat"><strong>100%</strong><span>Trazabilidad de movimientos</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SERVICIOS ===== -->
+  <section class="section" id="servicios">
+    <div class="container">
+      <h2 class="section-title">Nuestros servicios</h2>
+      <p class="section-sub">Todo lo que necesitas para vigilar tus registros en un solo lugar.</p>
+
+      <div class="grid grid-4">
+        <article class="card">
+          <div class="card-icon">🏠</div>
+          <h3>Monitoreo de predios</h3>
+          <p>Vigilamos la partida registral de tu propiedad y detectamos cualquier movimiento: cargas, gravámenes o transferencias.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">🚗</div>
+          <h3>Alertas vehiculares</h3>
+          <p>Recibe avisos ante cambios de propietario, embargos o anotaciones en la ficha registral de tu vehículo.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">📄</div>
+          <h3>Verificación de títulos</h3>
+          <p>Consulta el estado actual de una partida registral antes de firmar un contrato de compra o venta.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">🔔</div>
+          <h3>Notificaciones tempranas</h3>
+          <p>Alertas inmediatas por correo y panel web para que actúes antes de que sea tarde.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CÓMO FUNCIONA ===== -->
+  <section class="section section-alt" id="como-funciona">
+    <div class="container">
+      <h2 class="section-title">Cómo funciona</h2>
+      <p class="section-sub">Tres pasos simples para empezar a proteger tus registros.</p>
+
+      <div class="grid grid-3">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Registra tus datos</h3>
+          <p>Ingresa el titular y la partida registral del predio o vehículo que deseas vigilar.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Monitoreamos el registro</h3>
+          <p>El sistema revisa de forma continua si existe algún movimiento sobre tu partida.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Recibe la alerta</h3>
+          <p>Si detectamos un cambio, te notificamos al instante con el detalle del movimiento.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== REGISTRAR ALERTA (DEMO) ===== -->
+  <section class="section" id="demo">
+    <div class="container">
+      <h2 class="section-title">Registrar una alerta</h2>
+      <p class="section-sub">
+        Demostración funcional: las alertas se guardan en este navegador (localStorage)
+        mientras construimos la versión con base de datos.
+      </p>
+
+      <div class="demo-grid">
+        <form class="card form" id="alertForm">
+          <div class="field">
+            <label for="titular">Nombre del titular</label>
+            <input type="text" id="titular" placeholder="Ej.: María Quispe" required />
+          </div>
+          <div class="field">
+            <label for="tipo">Tipo de registro</label>
+            <select id="tipo" required>
+              <option value="">Selecciona una opción…</option>
+              <option value="Predio">Predio (inmueble)</option>
+              <option value="Vehículo">Vehículo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="partida">Partida / placa registral</label>
+            <input type="text" id="partida" placeholder="Ej.: 12345678 o ABC-123" required />
+          </div>
+          <div class="field">
+            <label for="detalle">¿Qué movimiento deseas vigilar? (opcional)</label>
+            <textarea id="detalle" rows="3" placeholder="Ej.: gravámenes, cambio de propietario, hipoteca…"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Registrar alerta</button>
+          <p class="form-msg" id="formMsg"></p>
+        </form>
+
+        <div class="alerts">
+          <div class="alerts-head">
+            <h3>Mis alertas</h3>
+            <span class="badge" id="alertCount">0</span>
+          </div>
+          <p class="alert-empty" id="alertEmpty">
+            Aún no tienes alertas registradas. Crea la primera con el formulario. 👈
+          </p>
+          <ul class="alert-list" id="alertList"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== EQUIPO ===== -->
+  <section class="section section-alt" id="equipo">
+    <div class="container">
+      <h2 class="section-title">Equipo de desarrollo</h2>
+      <p class="section-sub">Proyecto construido en colaboración entre dos integrantes.</p>
+
+      <div class="grid grid-2">
+        <!-- ✏️ Editen sus nombres reales aquí -->
+        <div class="card member">
+          <div class="member-avatar">👩‍💻</div>
+          <h3>Integrante 1</h3>
+          <p>Liderazgo del proyecto · Desarrollo web</p>
+        </div>
+        <div class="card member">
+          <div class="member-avatar">👩‍💼</div>
+          <h3>Integrante 2</h3>
+          <p>Contenido y gestión · Documentación</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PIE DE PÁGINA ===== -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p><strong>🛡️ Sistema Alerta Registral</strong></p>
+      <p>Proyecto académico / demostrativo. Los datos mostrados son de ejemplo.</p>
+      <p class="copy">© <span id="year"></span> Equipo Alerta Registral · Hecho con dedicación 💜</p>
+    </div>
+  </footer>
+
+  <script src="js/script.js"></script>
+</body>
+</html>
