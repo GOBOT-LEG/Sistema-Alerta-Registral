@@ -19,6 +19,18 @@ const MOVIMIENTOS = {
   cancelacion: 'Cancelación de carga',
   otro: 'Otro movimiento',
 };
+// Estados de un título en SUNARP. grupo: tramite (sigue en curso), atencion (requiere revisar), final (concluido)
+const ESTADOS_TITULO = {
+  presentado: { txt: 'Presentado', grupo: 'tramite' },
+  en_calificacion: { txt: 'En calificación', grupo: 'tramite' },
+  observado: { txt: 'Observado', grupo: 'atencion' },
+  liquidado: { txt: 'Liquidado', grupo: 'atencion' },
+  apelado: { txt: 'Apelado', grupo: 'atencion' },
+  inscrito: { txt: 'Inscrito', grupo: 'final' },
+  tachado: { txt: 'Tachado', grupo: 'final' },
+  otro: { txt: 'Otro', grupo: 'tramite' },
+};
+const SIGUELO_URL = 'https://sigueloplus.sunarp.gob.pe/siguelo/';
 const RIESGO_POR_MOV = { venta: 'alto', embargo: 'medio', garantia: 'medio', anotacion: 'bajo', cancelacion: 'bajo' };
 const RIESGO_TXT = { alto: 'Alto', medio: 'Medio', bajo: 'Bajo' };
 const DOCUMENTOS = [
@@ -43,8 +55,9 @@ const configurado = typeof SUPABASE_URL === 'string' && SUPABASE_URL && SUPABASE
 const sb = configurado && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // ---------- Estado ----------
-let db = { clientes: [], avales: [], partidas: [], alertas: [] };
+let db = { clientes: [], avales: [], partidas: [], alertas: [], tituloEventos: [] };
 let usuario = null;
+let titulosDisponibles = false;
 const ui = {
   vista: 'resumen',
   clienteId: '',
@@ -57,11 +70,12 @@ const ui = {
 };
 
 async function cargarDatos() {
-  const [c, a, p, al] = await Promise.all([
+  const [c, a, p, al, te] = await Promise.all([
     sb.from('clientes').select('*').order('producto').order('creado_en'),
     sb.from('avales').select('*').order('creado_en'),
     sb.from('partidas').select('*').order('creado_en'),
     sb.from('alertas').select('*').order('fecha', { ascending: false }),
+    sb.from('titulo_eventos').select('*').order('fecha', { ascending: false }).order('creado_en', { ascending: false }),
   ]);
   const err = c.error || a.error || p.error || al.error;
   if (err) throw err;
@@ -110,8 +124,15 @@ async function cargarDatos() {
       ts: new Date(x.fecha).getTime(),
       prueba: x.prueba,
       creadoPor: x.creado_por,
+      numeroTitulo: x.numero_titulo || '',
+      fechaPresentacion: x.fecha_presentacion || '',
     })),
+    // Si aún no se ejecutó supabase/2_titulos.sql la tabla no existe: la web sigue funcionando sin títulos
+    tituloEventos: te.error
+      ? []
+      : te.data.map((x) => ({ id: x.id, alertaId: x.alerta_id, estado: x.estado, fecha: x.fecha, nota: x.nota, creadoPor: x.creado_por, creadoEn: x.creado_en })),
   };
+  titulosDisponibles = !te.error;
 }
 
 async function refrescar() {
@@ -144,6 +165,72 @@ const alertasDe = (cid) => {
   const ids = partidasDe(cid).map((p) => p.id);
   return db.alertas.filter((a) => ids.includes(a.partidaId));
 };
+// ---------- Títulos ----------
+const eventosTitulo = (aid) =>
+  db.tituloEventos.filter((e) => e.alertaId === aid).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || String(b.creadoEn).localeCompare(String(a.creadoEn)));
+const estadoTitulo = (a) => eventosTitulo(a.id)[0] || null;
+const tieneTitulo = (a) => Boolean(a.numeroTitulo || eventosTitulo(a.id).length);
+const tituloAbierto = (a) => {
+  if (!tieneTitulo(a)) return false;
+  const e = estadoTitulo(a);
+  return !e || ESTADOS_TITULO[e.estado].grupo !== 'final';
+};
+function diasDesde(iso) {
+  if (!iso) return null;
+  return Math.floor((tsDe(hoyIso()) - tsDe(iso)) / 86400000);
+}
+function badgeTitulo(a) {
+  const e = estadoTitulo(a);
+  if (!e) return a.numeroTitulo ? '<span class="tbadge tramite">Sin revisar</span>' : '';
+  const est = ESTADOS_TITULO[e.estado] || ESTADOS_TITULO.otro;
+  return `<span class="tbadge ${est.grupo}">${est.txt}</span>`;
+}
+function revisionTxt(a) {
+  const e = estadoTitulo(a);
+  const ref = e ? e.fecha : a.fechaPresentacion;
+  const d = diasDesde(ref);
+  if (d == null) return '';
+  const cuando = d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`;
+  return `${e ? 'Revisado' : 'Presentado'} ${cuando}`;
+}
+function bloqueTitulo(a) {
+  if (!titulosDisponibles) return '';
+  const evs = eventosTitulo(a.id);
+  if (!tieneTitulo(a)) {
+    return `<div class="titulo-box vacio">
+      <span class="muted small">Sin datos del título SUNARP.</span>
+      <button class="btn btn-ghost btn-sm" data-accion="titulo" data-id="${esc(a.id)}">+ Datos del título</button>
+    </div>`;
+  }
+  const d = diasDesde(estadoTitulo(a) ? estadoTitulo(a).fecha : a.fechaPresentacion);
+  const atrasado = tituloAbierto(a) && d != null && d >= 3;
+  return `<div class="titulo-box">
+    <div class="titulo-top">
+      <span class="titulo-label">Título</span>
+      <strong class="mono">${esc(a.numeroTitulo || 'sin número')}</strong>
+      ${badgeTitulo(a)}
+      ${a.fechaPresentacion ? `<span class="muted small">Presentado ${fecha(a.fechaPresentacion)}</span>` : ''}
+      <span class="titulo-acciones">
+        <a class="btn btn-ghost btn-sm" href="${SIGUELO_URL}" target="_blank" rel="noopener" title="Consultar el estado en Síguelo de SUNARP">Síguelo ↗</a>
+        <button class="btn btn-primary btn-sm" data-accion="titulo" data-id="${esc(a.id)}">Actualizar estado</button>
+      </span>
+    </div>
+    ${atrasado ? `<p class="titulo-aviso">${revisionTxt(a)}: conviene volver a consultar en Síguelo.</p>` : ''}
+    ${
+      evs.length
+        ? `<ul class="titulo-hist">${evs
+            .map(
+              (e) => `<li><span class="tbadge ${ESTADOS_TITULO[e.estado].grupo}">${ESTADOS_TITULO[e.estado].txt}</span>
+                <span class="muted small">${fecha(e.fecha)}${quien(e.creadoPor).replace('registrado', 'revisado')}</span>
+                ${e.nota ? `<span class="titulo-nota">${esc(e.nota)}</span>` : ''}
+                <button class="icon-btn sm" data-accion="borrar-evento" data-id="${esc(e.id)}" title="Eliminar esta revisión" aria-label="Eliminar revisión">✕</button></li>`
+            )
+            .join('')}</ul>`
+        : ''
+    }
+  </div>`;
+}
+
 function titular(p) {
   const c = cliente(p.clienteId);
   if (!esDelAval(p)) return { tipo: 'cliente', nombre: c ? c.nombre : '—' };
@@ -333,6 +420,41 @@ function renderResumen(cs, ps, als) {
         .join('')}</div>
     </div>`;
 
+  // Títulos en trámite: los que no están inscritos ni tachados, el más antiguo sin revisar primero
+  const panelT = $('panelTitulos');
+  panelT.hidden = !titulosDisponibles;
+  if (titulosDisponibles) {
+    const abiertos = als.filter(tituloAbierto).sort((a, b) => {
+      const ra = estadoTitulo(a) ? estadoTitulo(a).fecha : a.fechaPresentacion || '';
+      const rb = estadoTitulo(b) ? estadoTitulo(b).fecha : b.fechaPresentacion || '';
+      return String(ra).localeCompare(String(rb));
+    });
+    const sinTitulo = als.filter((a) => !tieneTitulo(a) && ['venta', 'embargo', 'garantia'].includes(a.mov));
+    $('cntTitulos').textContent = abiertos.length;
+    $('listaTitulos').innerHTML =
+      (abiertos.length
+        ? `<table class="table"><thead><tr><th>Título</th><th>Estado</th><th>Última revisión</th><th>Movimiento</th><th>Partida</th><th>Cliente Global</th></tr></thead><tbody>${abiertos
+            .map((a) => {
+              const p = partida(a.partidaId);
+              const c = p && cliente(p.clienteId);
+              const e = estadoTitulo(a);
+              const d = diasDesde(e ? e.fecha : a.fechaPresentacion);
+              return `<tr data-ir="cliente/${esc(c && c.id)}" tabindex="0">
+                <td class="mono nowrap"><strong>${esc(a.numeroTitulo || 'sin número')}</strong></td>
+                <td>${badgeTitulo(a)}</td>
+                <td class="nowrap ${d != null && d >= 3 ? 'txt-atencion' : ''}">${e ? fecha(e.fecha) : 'Nunca'}${d != null ? ` <span class="muted small">(${d <= 0 ? 'hoy' : d + ' d'})</span>` : ''}</td>
+                <td>${esc(MOVIMIENTOS[a.mov] || a.mov)}${tagOrigen(a)}</td>
+                <td class="mono nowrap">${esc(p ? p.partida : '—')}</td>
+                <td>${esc(c ? c.nombre : '—')}</td>
+              </tr>`;
+            })
+            .join('')}</tbody></table>`
+        : vacio('No hay títulos en trámite.')) +
+      (sinTitulo.length
+        ? `<p class="muted small sin-titulo">${sinTitulo.length} alerta(s) de riesgo sin datos del título. Ábrelas desde la ficha del cliente para registrarlo.</p>`
+        : '');
+  }
+
   const recientes = [...ps].sort((a, b) => String(b.fechaRegistro).localeCompare(String(a.fechaRegistro))).slice(0, 5);
   $('tablaResumenPartidas').innerHTML = recientes.length
     ? tablaPartidasHtml(recientes)
@@ -431,7 +553,7 @@ function renderAlertas(als) {
     });
 
   $('tablaAlertas').innerHTML = lista.length
-    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente Global</th><th>Titular del bien</th><th>Partida</th><th>Movimiento</th><th>Detalle</th></tr></thead>
+    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente Global</th><th>Titular del bien</th><th>Partida</th><th>Movimiento</th>${titulosDisponibles ? '<th>Título</th>' : ''}<th>Detalle</th></tr></thead>
       <tbody>${lista
         .map((a) => {
           const p = partida(a.partidaId);
@@ -443,6 +565,7 @@ function renderAlertas(als) {
             <td class="titular-cell">${p ? titularHtml(p) : '—'}</td>
             <td class="mono nowrap"><strong>${esc(p ? p.partida : '—')}</strong><span class="muted block small">${esc(p ? REGISTROS[p.registro] : '')}</span></td>
             <td><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong></td>
+            ${titulosDisponibles ? `<td class="nowrap">${tieneTitulo(a) ? `<span class="mono small">${esc(a.numeroTitulo || '—')}</span><span class="block">${badgeTitulo(a)}</span>` : '<span class="muted small">—</span>'}</td>` : ''}
             <td class="muted wrap">${esc(a.detalle || '—')}</td>
           </tr>`;
         })
@@ -611,6 +734,7 @@ function itemHistorial(e) {
       <div class="tl-top"><strong>${esc(MOVIMIENTOS[e.mov] || e.mov)}</strong> ${badgeRiesgo(e.riesgo)}${tagOrigen(e)}<span class="tl-date">${fechaHora(e.ts)}</span></div>
       <div class="tl-meta">${meta}</div>
       ${e.detalle ? `<p>${esc(e.detalle)}</p>` : ''}
+      ${bloqueTitulo(e)}
       <div class="tl-foot"><span class="muted small">${quien(e.creadoPor).replace(' · ', '')}</span>
         <button class="link small btn-link-danger" data-accion="borrar-alerta" data-id="${esc(e.id)}">Eliminar</button></div>
     </div>
@@ -705,6 +829,7 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
     opcionesPartidas($('alCliente').value);
     if (pid) $('alPartida').value = pid;
   }
+  if (id === 'modalAlerta') $('alGrupoTitulo').hidden = !titulosDisponibles;
   if (id === 'modalAval') {
     opcionesClientes($('avCliente'));
     if (cid) $('avCliente').value = cid;
@@ -712,6 +837,22 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
   }
   m.showModal();
 }
+function abrirModalTitulo(aid) {
+  const a = db.alertas.find((x) => x.id === aid);
+  if (!a) return;
+  const p = partida(a.partidaId);
+  const f = $('formTitulo');
+  f.reset();
+  f.dataset.alerta = aid;
+  $('msgTitulo').textContent = '';
+  $('tiContexto').textContent = `${MOVIMIENTOS[a.mov] || a.mov} · partida ${p ? p.partida : ''} · aviso del ${fechaHora(a.ts)}`;
+  $('tiNumero').value = a.numeroTitulo || '';
+  $('tiFechaPres').value = a.fechaPresentacion || '';
+  $('tiFecha').value = hoyIso();
+  $('modalTitulo').showModal();
+  (a.numeroTitulo ? $('tiEstado') : $('tiNumero')).focus();
+}
+
 document.querySelectorAll('dialog').forEach((d) =>
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close();
@@ -762,6 +903,8 @@ document.addEventListener('click', (e) => {
       case 'alerta': return abrirModal('modalAlerta', { partida: id });
       case 'alerta-cliente': return abrirModal('modalAlerta', { cliente: id });
       case 'aval': return abrirModal('modalAval', { cliente: id });
+      case 'titulo': return abrirModalTitulo(id);
+      case 'borrar-evento': return borrar('titulo_eventos', id, '¿Eliminar esta revisión del título?');
       case 'borrar-alerta': return borrar('alertas', id, '¿Eliminar esta alerta? Se borrará para todo el equipo.');
       case 'borrar-partida': return borrar('partidas', id, '¿Eliminar esta partida y su historial? Se borrará para todo el equipo.');
       case 'borrar-aval': return borrar('avales', id, '¿Eliminar este aval y sus partidas? Se borrará para todo el equipo.');
@@ -852,21 +995,62 @@ $('formAlerta').addEventListener('submit', async (e) => {
   e.preventDefault();
   const partidaId = $('alPartida').value;
   if (!partidaId || !$('alMov').value || !$('alRiesgo').value) return ($('msgAlerta').textContent = 'Completa cliente, partida, movimiento y riesgo.');
-  const ok = await guardarEn(
-    'alertas',
-    {
-      partida_id: partidaId,
-      mov: $('alMov').value,
-      riesgo: $('alRiesgo').value,
-      detalle: $('alDetalle').value.trim() || null,
-    },
-    $('msgAlerta'),
-    'Alerta registrada para todo el equipo',
-    'modalAlerta'
-  );
-  if (!ok && /ya existe/.test($('msgAlerta').textContent)) {
-    $('msgAlerta').textContent = 'Esta alerta ya está registrada hoy para esa partida. Revisa el historial del cliente.';
+  const fila = {
+    partida_id: partidaId,
+    mov: $('alMov').value,
+    riesgo: $('alRiesgo').value,
+    detalle: $('alDetalle').value.trim() || null,
+  };
+  if (titulosDisponibles) {
+    fila.numero_titulo = $('alTitulo').value.trim() || null;
+    fila.fecha_presentacion = $('alTituloFecha').value || null;
   }
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true;
+  $('msgAlerta').textContent = '';
+  const { data, error } = await sb.from('alertas').insert(fila).select('id').single();
+  if (error) {
+    btn.disabled = false;
+    $('msgAlerta').textContent =
+      error.code === '23505' ? 'Esta alerta ya está registrada hoy para esa partida. Revisa el historial del cliente.' : 'No se guardó: ' + mensajeError(error);
+    return;
+  }
+  const estado = titulosDisponibles && $('alTituloEstado').value;
+  if (estado) {
+    const r = await sb.from('titulo_eventos').insert({ alerta_id: data.id, estado, fecha: hoyIso() });
+    if (r.error) toast('La alerta se guardó, pero no el estado del título: ' + mensajeError(r.error));
+  }
+  btn.disabled = false;
+  $('modalAlerta').close();
+  await refrescar();
+  toast('Alerta registrada para todo el equipo');
+});
+
+$('formTitulo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const aid = e.target.dataset.alerta;
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true;
+  $('msgTitulo').textContent = '';
+  const up = await sb
+    .from('alertas')
+    .update({ numero_titulo: $('tiNumero').value.trim() || null, fecha_presentacion: $('tiFechaPres').value || null })
+    .eq('id', aid);
+  let error = up.error;
+  if (!error && $('tiEstado').value) {
+    const r = await sb.from('titulo_eventos').insert({
+      alerta_id: aid,
+      estado: $('tiEstado').value,
+      fecha: $('tiFecha').value || hoyIso(),
+      nota: $('tiNota').value.trim() || null,
+    });
+    error = r.error;
+  }
+  btn.disabled = false;
+  if (error) return ($('msgTitulo').textContent = 'No se guardó: ' + mensajeError(error));
+  $('modalTitulo').close();
+  await refrescar();
+  toast('Título actualizado');
 });
 
 // ---------- Sesión ----------

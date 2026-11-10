@@ -445,6 +445,28 @@ body.sin-sesion .app { visibility: hidden; }
 .usuario .link { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: var(--azul-claro); }
 
 .solo-pj[hidden] { display: none; }
+
+/* ---------- Títulos SUNARP ---------- */
+.tbadge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 4px; white-space: nowrap; }
+.tbadge.tramite { background: var(--azul-suave); color: #0b5a91; }
+.tbadge.atencion { background: var(--medio-bg); color: var(--medio-txt); }
+.tbadge.final { background: #e9ecef; color: #3d4652; }
+.titulo-box { margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.titulo-box.vacio { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; border-style: dashed; }
+.titulo-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.titulo-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+.titulo-acciones { margin-left: auto; display: flex; gap: 6px; }
+.titulo-aviso { font-size: 0.8rem; color: var(--medio-txt); background: var(--medio-bg); border-radius: 6px; padding: 5px 9px; margin: 0; }
+.titulo-hist { list-style: none; display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border); padding-top: 8px; }
+.titulo-hist li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.titulo-hist .icon-btn.sm { margin-left: auto; width: 24px; height: 24px; }
+.titulo-nota { flex-basis: 100%; font-size: 0.82rem; color: var(--gris); padding-left: 2px; }
+.grupo-titulo { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.grupo-titulo legend { font-size: 0.8rem; font-weight: 600; color: var(--gris); padding: 0 4px; }
+.grupo-titulo[hidden] { display: none; }
+.txt-atencion { color: var(--medio-txt); font-weight: 600; }
+.sin-titulo { padding: 10px 14px 0; }
+#panelTitulos .table-wrap { margin: 0 -18px -16px; }
 .tl-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
 .docs-edit label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .docs-edit input { accent-color: var(--bajo); }

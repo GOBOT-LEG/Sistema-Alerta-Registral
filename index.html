@@ -116,6 +116,14 @@
             </div>
           </div>
 
+          <div class="panel" id="panelTitulos" hidden>
+            <div class="panel-head">
+              <h2>Títulos en trámite <span class="muted" id="cntTitulos">0</span></h2>
+              <a href="https://sigueloplus.sunarp.gob.pe/siguelo/" target="_blank" rel="noopener" class="link">Síguelo ↗</a>
+            </div>
+            <div class="table-wrap" id="listaTitulos"></div>
+          </div>
+
           <div class="panel">
             <div class="panel-head">
               <h2>Partidas afiliadas recientemente</h2>
@@ -278,6 +286,25 @@
           </label>
         </div>
         <label class="field">Detalle<textarea id="alDetalle" rows="3" placeholder="Texto del aviso de SUNARP…"></textarea></label>
+        <fieldset class="grupo-titulo" id="alGrupoTitulo">
+          <legend>Título SUNARP <span class="muted">(opcional, figura en el aviso)</span></legend>
+          <div class="row-2">
+            <label class="field">N.° de título<input id="alTitulo" placeholder="Ej.: 2026-01234567" /></label>
+            <label class="field">Fecha de presentación<input type="date" id="alTituloFecha" /></label>
+          </div>
+          <label class="field">Estado actual
+            <select id="alTituloEstado">
+              <option value="">Sin revisar todavía</option>
+              <option value="presentado">Presentado</option>
+              <option value="en_calificacion">En calificación</option>
+              <option value="observado">Observado</option>
+              <option value="liquidado">Liquidado</option>
+              <option value="apelado">Apelado</option>
+              <option value="inscrito">Inscrito</option>
+              <option value="tachado">Tachado</option>
+            </select>
+          </label>
+        </fieldset>
         <p class="form-msg" id="msgAlerta"></p>
       </div>
       <div class="modal-foot">
@@ -301,6 +328,43 @@
       <p class="form-msg" id="msgLogin"></p>
     </form>
   </div>
+
+  <!-- ===== MODAL: SEGUIMIENTO DEL TÍTULO ===== -->
+  <dialog class="modal" id="modalTitulo">
+    <form id="formTitulo" method="dialog">
+      <div class="modal-head"><h3>Seguimiento del título</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
+      <div class="modal-body">
+        <p class="muted small" id="tiContexto"></p>
+        <div class="row-2">
+          <label class="field">N.° de título<input id="tiNumero" placeholder="Ej.: 2026-01234567" /></label>
+          <label class="field">Fecha de presentación<input type="date" id="tiFechaPres" /></label>
+        </div>
+        <div class="row-2">
+          <label class="field">Estado en Síguelo
+            <select id="tiEstado">
+              <option value="">Solo guardar los datos</option>
+              <option value="presentado">Presentado</option>
+              <option value="en_calificacion">En calificación</option>
+              <option value="observado">Observado</option>
+              <option value="liquidado">Liquidado</option>
+              <option value="apelado">Apelado</option>
+              <option value="inscrito">Inscrito</option>
+              <option value="tachado">Tachado</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+          <label class="field">Fecha de la revisión<input type="date" id="tiFecha" /></label>
+        </div>
+        <label class="field">Nota (opcional)<textarea id="tiNota" rows="2" placeholder="Ej.: observado por falta de firma del cónyuge; vence el …"></textarea></label>
+        <a class="link small" href="https://sigueloplus.sunarp.gob.pe/siguelo/" target="_blank" rel="noopener">Abrir Síguelo de SUNARP ↗</a>
+        <p class="form-msg" id="msgTitulo"></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- ===== MODAL: AVAL ===== -->
   <dialog class="modal" id="modalAval">
