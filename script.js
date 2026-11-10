@@ -17,7 +17,8 @@ const MOVIMIENTOS = {
   garantia: 'Hipoteca / garantía',
   anotacion: 'Anotación / aviso',
   cancelacion: 'Cancelación de carga',
-  otro: 'Título presentado (acto por confirmar)',
+  otro: 'Otro movimiento',
+  pendiente: 'Acto por confirmar',
 };
 // Estados de un título en SUNARP. grupo: tramite (sigue en curso), atencion (requiere revisar), final (concluido)
 const ESTADOS_TITULO = {
@@ -124,6 +125,8 @@ async function cargarDatos() {
       ts: new Date(x.fecha).getTime(),
       prueba: x.prueba,
       creadoPor: x.creado_por,
+      revisadoPor: x.revisado_por || '',
+      revisadoEn: x.revisado_en || '',
       numeroTitulo: x.numero_titulo || '',
       fechaPresentacion: x.fecha_presentacion || '',
     })),
@@ -273,7 +276,9 @@ function toast(msg) {
   t._t = setTimeout(() => t.classList.remove('show'), 3200);
 }
 const tagProducto = (p) => `<span class="tag ${p}">${p === 'confirming' ? 'Confirming' : 'Factoring'}</span>`;
-const badgeRiesgo = (r) => `<span class="badge ${r}"><i class="dot ${r}"></i>${RIESGO_TXT[r]}</span>`;
+const badgeRiesgo = (r) =>
+  r ? `<span class="badge ${r}"><i class="dot ${r}"></i>${RIESGO_TXT[r]}</span>` : '<span class="badge pendiente"><i class="dot pendiente"></i>Pendiente de revisión</span>';
+const esPendiente = (a) => a.mov === 'pendiente';
 const tagOrigen = (a) => (a.prueba ? ' <span class="tag prueba">Prueba</span>' : '');
 const bell = (on) =>
   `<span class="bell ${on ? 'on' : ''}" title="${on ? 'Notificaciones activas en Alerta Registral' : 'Sin afiliar a Alerta Registral'}"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3h-3v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span>`;
@@ -283,8 +288,10 @@ function titularHtml(p) {
   return `${etiqueta} <span class="titular-nombre">${esc(t.nombre)}</span>`;
 }
 function estadoCliente(c) {
-  const r = riesgoMax(alertasDe(c.id));
-  if (r) return badgeRiesgo(r);
+  const als = alertasDe(c.id);
+  const r = riesgoMax(als);
+  const pend = als.some(esPendiente) ? badgeRiesgo(null) : '';
+  if (r || pend) return [r ? badgeRiesgo(r) : '', pend].filter(Boolean).join(' ');
   if (partidasDe(c.id).length) return '<span class="badge ok">Vigilado</span>';
   return '<span class="badge pend">Sin partidas</span>';
 }
@@ -359,7 +366,10 @@ function render() {
   const als = alertas();
   $('menuClientes').textContent = cs.length;
   $('menuPartidas').textContent = ps.length;
-  $('menuAlertas').textContent = als.length;
+  const nPend = als.filter(esPendiente).length;
+  $('menuAlertas').textContent = nPend || als.length;
+  $('menuAlertas').title = nPend ? `${nPend} pendiente(s) de revisión` : `${als.length} alertas`;
+  $('menuAlertas').classList.toggle('alerta', nPend > 0);
   $('menuAlertas').hidden = !als.length;
 
   if (ui.vista === 'resumen') renderResumen(cs, ps, als);
@@ -383,6 +393,7 @@ function renderResumen(cs, ps, als) {
   $('kpiActivas').textContent = ps.filter((p) => p.alertaRegistral).length;
   $('kpiDeAvales').textContent = ps.filter(esDelAval).length;
   $('kpiSinPartidas').textContent = cs.length - conPartidas(cs);
+  $('kpiPend').textContent = als.filter(esPendiente).length;
   $('kpiAlto').textContent = als.filter((a) => a.riesgo === 'alto').length;
   $('kpiAlertas').textContent = als.length;
 
@@ -393,7 +404,7 @@ function renderResumen(cs, ps, als) {
           const p = partida(a.partidaId);
           const c = p && cliente(p.clienteId);
           return `<li><a class="feed-item" href="#cliente/${esc(c && c.id)}">
-            <i class="dot ${a.riesgo}"></i>
+            <i class="dot ${a.riesgo || 'pendiente'}"></i>
             <div><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong>${tagOrigen(a)} · ${esc(c ? c.nombre : '—')}
               <span class="muted block">Partida ${esc(p ? p.partida : '—')}${p && esDelAval(p) ? ` · aval ${esc(titular(p).nombre)}` : ''} · ${fechaHora(a.ts)}</span></div>
             ${badgeRiesgo(a.riesgo)}
@@ -549,7 +560,8 @@ function renderAlertas(als) {
     .filter((a) => {
       const p = partida(a.partidaId);
       const c = p && cliente(p.clienteId);
-      return (ui.riesgo === 'todos' || a.riesgo === ui.riesgo) && coincide(c && c.nombre, c && c.ruc, p && p.partida, p && titular(p).nombre, a.detalle);
+      const okRiesgo = ui.riesgo === 'todos' || (ui.riesgo === 'pendiente' ? esPendiente(a) : a.riesgo === ui.riesgo);
+      return okRiesgo && coincide(c && c.nombre, c && c.ruc, p && p.partida, p && titular(p).nombre, a.detalle);
     });
 
   $('tablaAlertas').innerHTML = lista.length
@@ -558,7 +570,7 @@ function renderAlertas(als) {
         .map((a) => {
           const p = partida(a.partidaId);
           const c = p && cliente(p.clienteId);
-          return `<tr class="row-${a.riesgo}" data-ir="cliente/${esc(c && c.id)}" tabindex="0">
+          return `<tr class="row-${a.riesgo || 'pendiente'}" data-ir="cliente/${esc(c && c.id)}" tabindex="0">
             <td class="nowrap">${fechaHora(a.ts)}</td>
             <td class="nowrap">${badgeRiesgo(a.riesgo)}${tagOrigen(a)}</td>
             <td>${esc(c ? c.nombre : '—')}</td>
@@ -728,18 +740,64 @@ function itemHistorial(e) {
       </div>
     </li>`;
   }
-  return `<li class="tl-item tl-${e.riesgo}">
+  return `<li class="tl-item tl-${e.riesgo || 'pendiente'}">
     <span class="tl-dot"></span>
     <div class="tl-body">
       <div class="tl-top"><strong>${esc(MOVIMIENTOS[e.mov] || e.mov)}</strong> ${badgeRiesgo(e.riesgo)}${tagOrigen(e)}<span class="tl-date">${fechaHora(e.ts)}</span></div>
       <div class="tl-meta">${meta}</div>
       ${e.detalle ? `<p>${esc(e.detalle)}</p>` : ''}
+      ${bloqueActo(e)}
       ${bloqueTitulo(e)}
-      <div class="tl-foot"><span class="muted small">${quien(e.creadoPor).replace(' · ', '')}</span>
+      <div class="tl-foot"><span class="muted small">${quien(e.creadoPor).replace(' · ', '')}${
+        e.revisadoPor ? ` · acto confirmado por ${esc(e.revisadoPor.split('@')[0])}${e.revisadoEn ? ' el ' + fechaHora(new Date(e.revisadoEn).getTime()) : ''}` : ''
+      }</span>
         <button class="link small btn-link-danger" data-accion="borrar-alerta" data-id="${esc(e.id)}">Eliminar</button></div>
     </div>
   </li>`;
 }
+
+// Recuadro para confirmar (o corregir) el acto de una alerta
+function bloqueActo(a) {
+  const opciones = (sel) =>
+    ['venta', 'embargo', 'garantia', 'anotacion', 'cancelacion', 'otro']
+      .map((m) => `<option value="${m}" ${sel === m ? 'selected' : ''}>${MOVIMIENTOS[m]}</option>`)
+      .join('');
+  const riesgos = (sel) =>
+    ['alto', 'medio', 'bajo'].map((r) => `<option value="${r}" ${sel === r ? 'selected' : ''}>${RIESGO_TXT[r]}</option>`).join('');
+  const form = (pend) => `<form class="acto-form" data-alerta="${esc(a.id)}" ${pend ? '' : 'hidden'}>
+      <select name="mov" required aria-label="Acto"><option value="">Acto…</option>${opciones(pend ? '' : a.mov)}</select>
+      <select name="riesgo" required aria-label="Riesgo"><option value="">Riesgo…</option>${riesgos(pend ? '' : a.riesgo)}</select>
+      <button type="submit" class="btn btn-primary btn-sm">Confirmar acto</button>
+    </form>`;
+  if (esPendiente(a)) {
+    return `<div class="acto-box">
+      <span class="acto-titulo">Acto pendiente de revisión</span>
+      <span class="muted small">Revisa el título en Síguelo y confirma qué acto es.</span>
+      ${form(true)}
+    </div>`;
+  }
+  return `<div class="acto-editar"><button class="link small" data-accion="editar-acto" data-id="${esc(a.id)}">Cambiar acto</button>${form(false)}</div>`;
+}
+
+document.addEventListener('change', (e) => {
+  const f = e.target.closest('.acto-form');
+  if (f && e.target.name === 'mov' && RIESGO_POR_MOV[e.target.value]) f.riesgo.value = RIESGO_POR_MOV[e.target.value];
+});
+document.addEventListener('submit', async (e) => {
+  const f = e.target.closest('.acto-form');
+  if (!f) return;
+  e.preventDefault();
+  const btn = f.querySelector('button');
+  btn.disabled = true;
+  const { error } = await sb
+    .from('alertas')
+    .update({ mov: f.mov.value, riesgo: f.riesgo.value, revisado_por: usuario.email, revisado_en: new Date().toISOString() })
+    .eq('id', f.dataset.alerta);
+  btn.disabled = false;
+  if (error) return toast('No se guardó: ' + (error.code === '23505' ? 'ya hay otra alerta con ese acto ese mismo día en esta partida.' : mensajeError(error)));
+  await refrescar();
+  toast('Acto confirmado');
+});
 
 function grupoPartidas({ tipo, titulo, sub, lista, clienteId, titularId }) {
   return `<div class="titular-box ${tipo}">
@@ -806,7 +864,10 @@ function opcionesTitular(cid) {
 $('parCliente').addEventListener('change', (e) => opcionesTitular(e.target.value));
 $('alCliente').addEventListener('change', (e) => opcionesPartidas(e.target.value));
 $('alMov').addEventListener('change', (e) => {
-  if (RIESGO_POR_MOV[e.target.value]) $('alRiesgo').value = RIESGO_POR_MOV[e.target.value];
+  const pend = e.target.value === 'pendiente';
+  $('alRiesgo').disabled = pend;
+  if (pend) $('alRiesgo').value = '';
+  else if (RIESGO_POR_MOV[e.target.value]) $('alRiesgo').value = RIESGO_POR_MOV[e.target.value];
 });
 $('avTipo').addEventListener('change', (e) => document.querySelector('.solo-pj').toggleAttribute('hidden', e.target.value !== 'juridica'));
 
@@ -829,7 +890,10 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
     opcionesPartidas($('alCliente').value);
     if (pid) $('alPartida').value = pid;
   }
-  if (id === 'modalAlerta') $('alGrupoTitulo').hidden = !titulosDisponibles;
+  if (id === 'modalAlerta') {
+    $('alGrupoTitulo').hidden = !titulosDisponibles;
+    $('alMov').dispatchEvent(new Event('change'));
+  }
   if (id === 'modalAval') {
     opcionesClientes($('avCliente'));
     if (cid) $('avCliente').value = cid;
@@ -904,6 +968,11 @@ document.addEventListener('click', (e) => {
       case 'alerta-cliente': return abrirModal('modalAlerta', { cliente: id });
       case 'aval': return abrirModal('modalAval', { cliente: id });
       case 'titulo': return abrirModalTitulo(id);
+      case 'editar-acto': {
+        const f = acc.parentElement.querySelector('.acto-form');
+        if (f) f.hidden = !f.hidden;
+        return;
+      }
       case 'borrar-evento': return borrar('titulo_eventos', id, '¿Eliminar esta revisión del título?');
       case 'borrar-alerta': return borrar('alertas', id, '¿Eliminar esta alerta? Se borrará para todo el equipo.');
       case 'borrar-partida': return borrar('partidas', id, '¿Eliminar esta partida y su historial? Se borrará para todo el equipo.');
@@ -994,13 +1063,15 @@ $('formPartida').addEventListener('submit', async (e) => {
 $('formAlerta').addEventListener('submit', async (e) => {
   e.preventDefault();
   const partidaId = $('alPartida').value;
-  if (!partidaId || !$('alMov').value || !$('alRiesgo').value) return ($('msgAlerta').textContent = 'Completa cliente, partida, movimiento y riesgo.');
+  const pend = $('alMov').value === 'pendiente';
+  if (!partidaId || !$('alMov').value || (!pend && !$('alRiesgo').value)) return ($('msgAlerta').textContent = 'Completa cliente, partida, movimiento y riesgo.');
   const fila = {
     partida_id: partidaId,
     mov: $('alMov').value,
-    riesgo: $('alRiesgo').value,
+    riesgo: pend ? null : $('alRiesgo').value,
     detalle: $('alDetalle').value.trim() || null,
   };
+  if (!pend) Object.assign(fila, { revisado_por: usuario.email, revisado_en: new Date().toISOString() });
   if (titulosDisponibles) {
     fila.numero_titulo = $('alTitulo').value.trim() || null;
     fila.fecha_presentacion = $('alTituloFecha').value || null;
@@ -1116,9 +1187,9 @@ async function procesarAvisoSunarp({ texto, fecha: fechaCorreo }) {
     .from('alertas')
     .insert({
       partida_id: p.id,
-      mov: 'otro',
-      riesgo: 'medio',
-      detalle: `${av.texto} — Acto por confirmar en Síguelo; riesgo provisional.`,
+      mov: 'pendiente',
+      riesgo: null,
+      detalle: av.texto,
       fecha: fechaCorreo ? new Date(fechaCorreo).toISOString() : new Date().toISOString(),
       numero_titulo: av.titulo,
       fecha_presentacion: ['en_calificacion', 'presentado'].includes(av.estado) ? av.fecha : null,

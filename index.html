@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261110c" />
+  <link rel="stylesheet" href="styles.css?v=20261110d" />
 </head>
 <body>
   <div class="app">
@@ -92,10 +92,10 @@
               <strong id="kpiSinPartidas">0</strong>
               <span class="kpi-sub">Clientes por consultar en SUNARP</span>
             </a>
-            <a class="kpi kpi-alto" href="#alertas" data-riesgo-rapido="alto">
-              <span class="kpi-label">Alertas riesgo alto</span>
-              <strong id="kpiAlto">0</strong>
-              <span class="kpi-sub"><span id="kpiAlertas">0</span> alertas en total</span>
+            <a class="kpi kpi-pend" href="#alertas" data-riesgo-rapido="pendiente">
+              <span class="kpi-label">Pendientes de revisión</span>
+              <strong id="kpiPend">0</strong>
+              <span class="kpi-sub"><span id="kpiAlto">0</span> de riesgo alto · <span id="kpiAlertas">0</span> alertas en total</span>
             </a>
           </div>
 
@@ -179,6 +179,7 @@
           <div class="toolbar">
             <div class="segmented" id="filtroRiesgo">
               <button class="active" data-valor="todos">Todas</button>
+              <button data-valor="pendiente"><i class="dot pendiente"></i>Pendientes</button>
               <button data-valor="alto"><i class="dot alto"></i>Alto</button>
               <button data-valor="medio"><i class="dot medio"></i>Medio</button>
               <button data-valor="bajo"><i class="dot bajo"></i>Bajo</button>
@@ -267,17 +268,17 @@
         <div class="row-2">
           <label class="field">Movimiento
             <select id="alMov" required>
-              <option value="">Selecciona…</option>
-              <option value="venta">Venta o transferencia</option>
+              <option value="pendiente">Pendiente de revisión (acto por confirmar)</option>
+              <option value="venta">Compraventa / transferencia</option>
               <option value="embargo">Embargo</option>
               <option value="garantia">Hipoteca / garantía</option>
               <option value="anotacion">Anotación / aviso</option>
               <option value="cancelacion">Cancelación de carga</option>
-              <option value="otro">Otro</option>
+              <option value="otro">Otro movimiento</option>
             </select>
           </label>
           <label class="field">Riesgo
-            <select id="alRiesgo" required>
+            <select id="alRiesgo">
               <option value="">Selecciona…</option>
               <option value="alto">Alto</option>
               <option value="medio">Medio</option>
@@ -391,7 +392,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script src="config.js?v=20261110c"></script>
-  <script src="script.js?v=20261110c"></script>
+  <script src="config.js?v=20261110d"></script>
+  <script src="script.js?v=20261110d"></script>
 </body>
 </html>

@@ -446,6 +446,21 @@ body.sin-sesion .app { visibility: hidden; }
 
 .solo-pj[hidden] { display: none; }
 
+/* ---------- Pendiente de revisión ---------- */
+.badge.pendiente { background: #fff0c2; color: #7a5a00; }
+.dot.pendiente { background: #d9a400; }
+.row-pendiente td:first-child { box-shadow: inset 3px 0 0 #d9a400; }
+.tl-pendiente .tl-dot { border-color: #d9a400; background: #d9a400; box-shadow: 0 0 0 4px #fff0c2; }
+.tl-pendiente .tl-body { background: #fffbeb; border: 1px solid #f3dc8a; border-radius: 8px; padding: 10px 12px; }
+.kpi-pend strong { color: #a87b00; }
+.acto-box { margin-top: 8px; border: 1px dashed #d9a400; background: #fff; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.acto-titulo { font-weight: 700; font-size: 0.84rem; color: #7a5a00; text-transform: uppercase; letter-spacing: 0.3px; }
+.acto-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.acto-form[hidden] { display: none; }
+.acto-form select { font: inherit; font-size: 0.84rem; border: 1px solid #d5dce4; border-radius: 8px; padding: 6px 8px; background: #fff; }
+.acto-editar { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.acto-editar .link { background: none; border: 0; padding: 0; cursor: pointer; }
+
 /* ---------- Títulos SUNARP ---------- */
 .tbadge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 4px; white-space: nowrap; }
 .tbadge.tramite { background: var(--azul-suave); color: #0b5a91; }
