@@ -17,7 +17,7 @@ const MOVIMIENTOS = {
   garantia: 'Hipoteca / garantía',
   anotacion: 'Anotación / aviso',
   cancelacion: 'Cancelación de carga',
-  otro: 'Otro movimiento',
+  otro: 'Título presentado (acto por confirmar)',
 };
 // Estados de un título en SUNARP. grupo: tramite (sigue en curso), atencion (requiere revisar), final (concluido)
 const ESTADOS_TITULO = {
@@ -1052,6 +1052,86 @@ $('formTitulo').addEventListener('submit', async (e) => {
   await refrescar();
   toast('Título actualizado');
 });
+
+// ---------- Avisos de Alerta Registral (correo de SUNARP) ----------
+// Lee el texto de un correo "Notificacion de Alerta Registral" y lo registra en la base de datos:
+// ubica la partida vigilada, crea la alerta si el título es nuevo o agrega el nuevo estado si ya existía.
+// Lo usa la tarea diaria que revisa el correo; también se puede llamar a mano desde la consola.
+const ESTADO_POR_TEXTO = [
+  [/ingresado para calificaci|en calificaci/i, 'en_calificacion'],
+  [/observ/i, 'observado'],
+  [/liquidad/i, 'liquidado'],
+  [/apela/i, 'apelado'],
+  [/inscri/i, 'inscrito'],
+  [/tacha/i, 'tachado'],
+  [/presentad/i, 'presentado'],
+];
+
+function leerAvisoSunarp(texto) {
+  const t = String(texto || '').replace(/\s+/g, ' ');
+  const mPartida = t.match(/Partida(?:\s+Registral)?\s*N\s*[°º.o]*\s*(\d{5,})/i);
+  const mTitulo = t.match(/T[ií]tulo\s*(?:N\s*[°º.o]*\s*)?(\d{4,})\s*-\s*(\d{4})/i);
+  const mFecha = t.match(/\bel\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  const mOficina = t.match(/Oficina\s+Registral\s+de\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ _()-]*?)\s*[.,;]/i);
+  const mEnlace = t.match(/https?:\/\/[^\s<>"]+/i);
+  const estado = (ESTADO_POR_TEXTO.find(([re]) => re.test(t)) || [null, null])[1];
+  if (!mPartida || !mTitulo) return null;
+  return {
+    partida: mPartida[1],
+    titulo: `${mTitulo[2]}-${mTitulo[1]}`,
+    fecha: mFecha ? `${mFecha[3]}-${mFecha[2].padStart(2, '0')}-${mFecha[1].padStart(2, '0')}` : null,
+    oficina: mOficina ? mOficina[1].trim() : '',
+    enlace: mEnlace ? mEnlace[0].replace(/[.,]$/, '') : '',
+    estado: estado || 'otro',
+    texto: t.trim(),
+  };
+}
+
+async function procesarAvisoSunarp({ texto, fecha: fechaCorreo }) {
+  if (!usuario) return { resultado: 'sin_sesion' };
+  const av = leerAvisoSunarp(texto);
+  if (!av) return { resultado: 'no_reconocido' };
+  await cargarDatos();
+  const mismaOficina = (p) => !av.oficina || !p.oficina || p.oficina.toLowerCase() === av.oficina.toLowerCase();
+  const candidatas = db.partidas.filter((p) => p.partida === av.partida);
+  const p = candidatas.find(mismaOficina) || candidatas[0];
+  if (!p) return { resultado: 'partida_no_vigilada', ...av };
+
+  const c = cliente(p.clienteId);
+  const base = { ...av, cliente: c ? c.nombre : '', titular: titular(p).nombre };
+  const fechaRev = av.fecha || hoyIso();
+  const nota = `Aviso de Alerta Registral${fechaCorreo ? ' del ' + fechaHora(new Date(fechaCorreo).getTime()) : ''}.`;
+  const existente = db.alertas.find((a) => a.partidaId === p.id && a.numeroTitulo === av.titulo);
+
+  if (existente) {
+    const yaEsta = eventosTitulo(existente.id).some((e) => e.estado === av.estado && e.fecha === fechaRev);
+    if (yaEsta) return { resultado: 'duplicado', ...base };
+    const r = await sb.from('titulo_eventos').insert({ alerta_id: existente.id, estado: av.estado, fecha: fechaRev, nota });
+    if (r.error) return { resultado: 'error', error: mensajeError(r.error), ...base };
+    await refrescar();
+    return { resultado: 'estado_actualizado', ...base };
+  }
+
+  const ins = await sb
+    .from('alertas')
+    .insert({
+      partida_id: p.id,
+      mov: 'otro',
+      riesgo: 'medio',
+      detalle: `${av.texto} — Acto por confirmar en Síguelo; riesgo provisional.`,
+      fecha: fechaCorreo ? new Date(fechaCorreo).toISOString() : new Date().toISOString(),
+      numero_titulo: av.titulo,
+      fecha_presentacion: ['en_calificacion', 'presentado'].includes(av.estado) ? av.fecha : null,
+    })
+    .select('id')
+    .single();
+  if (ins.error) return { resultado: 'error', error: mensajeError(ins.error), ...base };
+  const ev = await sb.from('titulo_eventos').insert({ alerta_id: ins.data.id, estado: av.estado, fecha: fechaRev, nota });
+  await refrescar();
+  return { resultado: 'nueva_alerta', ...base, avisoEstado: ev.error ? 'no se guardó el estado' : 'ok' };
+}
+window.leerAvisoSunarp = leerAvisoSunarp;
+window.procesarAvisoSunarp = procesarAvisoSunarp;
 
 // ---------- Sesión ----------
 function mostrarLogin(texto) {
