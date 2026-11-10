@@ -280,6 +280,27 @@ svg { fill: currentColor; }
 .tag.factoring { background: var(--azul-suave); color: #0b5a91; }
 .tag.confirming { background: #eceef1; color: var(--gris); }
 .tag.demo { background: var(--medio-bg); color: var(--medio-txt); }
+.tag.empresa { background: #e8eefc; color: #2f4fa8; }
+.tag.aval { background: #f3e8fd; color: #7a2fb0; }
+
+/* Titulares (cliente / aval) */
+.titular-cell { min-width: 180px; }
+.titular-nombre { font-size: 0.8rem; font-weight: 500; }
+.avales-cell { min-width: 190px; }
+.aval-line { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; line-height: 1.35; padding: 1px 0; }
+.aval-ico { width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; background: #f3e8fd; position: relative; }
+.aval-ico::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #7a2fb0; }
+.aval-ico.pj { border-radius: 3px; }
+.aval-ico.pj::after { border-radius: 1px; }
+
+.titular-box { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.titular-box.aval { border-left: 4px solid #a66bd3; background: #fcf9fe; }
+.titular-box.cliente { border-left: 4px solid #2f4fa8; }
+.titular-head { display: flex; align-items: flex-start; gap: 10px; }
+.titular-info { flex: 1; min-width: 0; }
+.titular-info strong { font-size: 0.86rem; color: var(--navy); }
+.titular-box .plist li { background: #fff; }
+.sin-partidas { font-style: italic; }
 
 .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
 .badge.ok { background: var(--bajo-bg); color: var(--bajo); }

@@ -77,12 +77,12 @@
             <a class="kpi" href="#clientes">
               <span class="kpi-label">Clientes</span>
               <strong id="kpiClientes">0</strong>
-              <span class="kpi-sub"><span id="kpiFact">0</span> factoring · <span id="kpiConf">0</span> confirming</span>
+              <span class="kpi-sub"><span id="kpiFact">0</span> factoring · <span id="kpiConf">0</span> confirming · <span id="kpiAvales">0</span> avales</span>
             </a>
             <a class="kpi" href="#partidas">
               <span class="kpi-label">Partidas vigiladas</span>
               <strong id="kpiPartidas">0</strong>
-              <span class="kpi-sub"><span id="kpiActivas">0</span> activas en Alerta Registral</span>
+              <span class="kpi-sub"><span id="kpiActivas">0</span> activas · <span id="kpiDeAvales">0</span> de avales</span>
             </a>
             <a class="kpi" href="#clientes" data-filtro-rapido="sinpartidas">
               <span class="kpi-label">Sin partidas</span>
@@ -232,7 +232,8 @@
     <form id="formPartida" method="dialog">
       <div class="modal-head"><h3>Agregar partida</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
       <div class="modal-body">
-        <label class="field">Cliente<select id="parCliente" required></select></label>
+        <label class="field">Cliente Global<select id="parCliente" required></select></label>
+        <label class="field">Titular del bien<select id="parTitular" required></select></label>
         <div class="row-2">
           <label class="field">Registro jurídico
             <select id="parRegistro" required>
@@ -265,7 +266,7 @@
     <form id="formAlerta" method="dialog">
       <div class="modal-head"><h3>Registrar alerta</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
       <div class="modal-body">
-        <label class="field">Cliente<select id="alCliente" required></select></label>
+        <label class="field">Cliente Global<select id="alCliente" required></select></label>
         <label class="field">Partida<select id="alPartida" required></select></label>
         <div class="row-2">
           <label class="field">Movimiento

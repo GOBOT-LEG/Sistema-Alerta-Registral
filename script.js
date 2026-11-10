@@ -61,6 +61,19 @@ function partidas() {
 const cliente = (id) => clientes().find((c) => c.id === id);
 const partida = (id) => partidas().find((p) => p.id === id);
 const partidasDe = (cid) => partidas().filter((p) => p.clienteId === cid);
+const avalesDe = (c) => (c && Array.isArray(c.avales) ? c.avales.filter((a) => a && typeof a === 'object') : []);
+const esDelAval = (p) => p.titular && p.titular !== 'cliente';
+function titular(p) {
+  const c = cliente(p.clienteId);
+  if (!esDelAval(p)) return { tipo: 'cliente', nombre: c ? c.nombre : '—' };
+  const a = avalesDe(c).find((x) => x.id === p.titular);
+  return { tipo: 'aval', nombre: a ? a.nombre : 'Aval', aval: a };
+}
+function titularHtml(p, corto = false) {
+  const t = titular(p);
+  const etiqueta = t.tipo === 'aval' ? '<span class="tag aval">Aval</span>' : '<span class="tag empresa">Cliente</span>';
+  return corto ? etiqueta : `${etiqueta} <span class="titular-nombre">${esc(t.nombre)}</span>`;
+}
 const alertasDe = (cid) => {
   const ids = partidasDe(cid).map((p) => p.id);
   return extra.alertas.filter((a) => ids.includes(a.partidaId));
@@ -177,7 +190,7 @@ function render() {
   if (ui.vista === 'clientes') renderClientes(cs);
   if (ui.vista === 'partidas') renderPartidas(ps);
   if (ui.vista === 'alertas') renderAlertas();
-  if ($('drawer').classList.contains('open')) abrirDrawer($('drawer').dataset.cliente);
+  if ($('drawer').classList.contains('open')) abrirDrawer($('drawer').dataset.abierto);
 }
 
 // ---------- Resumen ----------
@@ -191,6 +204,8 @@ function renderResumen(cs, ps) {
   $('kpiConf').textContent = conf.length;
   $('kpiPartidas').textContent = ps.length;
   $('kpiActivas').textContent = ps.filter((p) => p.alertaRegistral).length;
+  $('kpiDeAvales').textContent = ps.filter(esDelAval).length;
+  $('kpiAvales').textContent = cs.reduce((n, c) => n + avalesDe(c).length, 0);
   $('kpiSinPartidas').textContent = cs.length - conPartidas(cs);
   $('kpiAlto').textContent = extra.alertas.filter((a) => a.riesgo === 'alto').length;
   $('kpiAlertas').textContent = extra.alertas.length;
@@ -204,7 +219,7 @@ function renderResumen(cs, ps) {
           return `<li class="feed-item" data-cliente="${esc(c && c.id)}">
             <i class="dot ${a.riesgo}"></i>
             <div><strong>${esc(MOVIMIENTOS[a.mov])}</strong> · ${esc(c ? c.nombre : '—')}
-              <span class="muted block">Partida ${esc(p ? p.partida : '—')} · ${fechaHora(a.ts)}</span></div>
+              <span class="muted block">Partida ${esc(p ? p.partida : '—')}${p && esDelAval(p) ? ` · aval ${esc(titular(p).nombre)}` : ''} · ${fechaHora(a.ts)}</span></div>
             ${badgeRiesgo(a.riesgo)}
           </li>`;
         })
@@ -245,12 +260,12 @@ function renderClientes(cs) {
     (c) =>
       (ui.producto === 'todos' || c.producto === ui.producto) &&
       (!ui.sinPartidas || !partidasDe(c.id).length) &&
-      coincide(c.nombre, c.ruc, c.ubicacion, ...partidasDe(c.id).map((p) => p.partida))
+      coincide(c.nombre, c.ruc, c.ubicacion, ...avalesDe(c).map((a) => a.nombre), ...partidasDe(c.id).map((p) => p.partida))
   );
 
   $('tablaClientes').innerHTML = `
     <thead><tr>
-      <th>Cliente</th><th>RUC</th><th>Producto</th><th>Contrato</th><th>Expediente</th><th class="c">Partidas</th><th>Estado</th><th></th>
+      <th>Cliente</th><th>RUC</th><th>Producto</th><th>Avales</th><th>Contrato</th><th>Expediente</th><th class="c">Partidas</th><th>Estado</th><th></th>
     </tr></thead>
     <tbody>${
       lista.length
@@ -258,14 +273,22 @@ function renderClientes(cs) {
             .map((c) => {
               const docs = c.documentos || {};
               const n = DOCUMENTOS.filter(([k]) => docs[k]).length;
-              const np = partidasDe(c.id).length;
+              const ps = partidasDe(c.id);
+              const np = ps.length;
+              const npAval = ps.filter(esDelAval).length;
+              const avs = avalesDe(c);
               return `<tr data-cliente="${esc(c.id)}">
                 <td><strong class="nombre">${esc(c.nombre)}</strong><span class="muted block">${esc(c.ubicacion || '')}</span></td>
                 <td class="mono">${esc(c.ruc)}</td>
                 <td>${tagProducto(c.producto)}${c.demo ? ' <span class="tag demo">Simulación</span>' : ''}</td>
+                <td class="avales-cell">${
+                  avs.length
+                    ? avs.map((a) => `<span class="aval-line"><i class="aval-ico ${a.tipo === 'juridica' ? 'pj' : 'pn'}" title="${a.tipo === 'juridica' ? 'Persona jurídica' : 'Persona natural'}"></i>${esc(a.nombre)}</span>`).join('')
+                    : '<span class="muted">—</span>'
+                }</td>
                 <td>${fecha(c.fechaContrato)}</td>
                 <td>${c.documentos ? `<span class="progress" title="${n} de ${DOCUMENTOS.length} documentos"><span style="width:${(n / DOCUMENTOS.length) * 100}%"></span></span> <span class="muted">${n}/${DOCUMENTOS.length}</span>` : '<span class="muted">—</span>'}</td>
-                <td class="c"><strong>${np}</strong></td>
+                <td class="c"><strong>${np}</strong>${npAval ? `<span class="muted block small nowrap">${npAval} de aval</span>` : ''}</td>
                 <td>${estadoCliente(c)}</td>
                 <td class="r nowrap">
                   <button class="btn btn-ghost btn-sm" data-accion="partida" data-id="${esc(c.id)}">+ Partida</button>
@@ -274,7 +297,7 @@ function renderClientes(cs) {
               </tr>`;
             })
             .join('')
-        : `<tr><td colspan="8">${vacio('No hay clientes con esos filtros.')}</td></tr>`
+        : `<tr><td colspan="9">${vacio('No hay clientes con esos filtros.')}</td></tr>`
     }</tbody>`;
 }
 
@@ -282,7 +305,7 @@ function renderClientes(cs) {
 function tablaPartidasHtml(lista) {
   return `
     <thead><tr>
-      <th>Of. Reg.</th><th>Registro jurídico</th><th>Fecha de registro</th><th>N.° partida</th><th>Cliente</th><th>Estado</th><th class="c">Notif.</th><th></th>
+      <th>Of. Reg.</th><th>Registro jurídico</th><th>Fecha de registro</th><th>N.° partida</th><th>Titular</th><th>Cliente Global</th><th>Estado</th><th class="c">Notif.</th><th></th>
     </tr></thead>
     <tbody>${lista
       .map((p) => {
@@ -293,6 +316,7 @@ function tablaPartidasHtml(lista) {
           <td>${esc(REGISTROS[p.registro] || p.registro)}</td>
           <td>${fecha(p.fechaRegistro)}</td>
           <td class="mono"><strong>${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}</td>
+          <td class="titular-cell">${titularHtml(p)}</td>
           <td><a href="#" class="link" data-cliente="${esc(c && c.id)}">${esc(c ? c.nombre : '—')}</a></td>
           <td><span class="badge ${p.estado === 'Activa' || p.alertaRegistral ? 'ok' : 'pend'}">${esc(p.estado || (p.alertaRegistral ? 'Activa' : 'Pendiente'))}</span></td>
           <td class="c">${bell(p.alertaRegistral)}${n ? `<span class="bell-count">${n}</span>` : ''}</td>
@@ -308,7 +332,7 @@ function tablaPartidasHtml(lista) {
 function renderPartidas(ps) {
   const lista = ps.filter((p) => {
     const c = cliente(p.clienteId);
-    return (ui.registro === 'todos' || p.registro === ui.registro) && coincide(p.partida, p.ficha, p.oficina, c && c.nombre, c && c.ruc);
+    return (ui.registro === 'todos' || p.registro === ui.registro) && coincide(p.partida, p.ficha, p.oficina, c && c.nombre, c && c.ruc, titular(p).nombre);
   });
   $('tablaPartidas').innerHTML = lista.length
     ? tablaPartidasHtml(lista)
@@ -322,11 +346,11 @@ function renderAlertas() {
     .filter((a) => {
       const p = partida(a.partidaId);
       const c = p && cliente(p.clienteId);
-      return (ui.riesgo === 'todos' || a.riesgo === ui.riesgo) && coincide(c && c.nombre, c && c.ruc, p && p.partida, a.detalle);
+      return (ui.riesgo === 'todos' || a.riesgo === ui.riesgo) && coincide(c && c.nombre, c && c.ruc, p && p.partida, p && titular(p).nombre, a.detalle);
     });
 
   $('tablaAlertas').innerHTML = lista.length
-    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente</th><th>Partida</th><th>Movimiento</th><th>Detalle</th><th></th></tr></thead>
+    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente Global</th><th>Titular del bien</th><th>Partida</th><th>Movimiento</th><th>Detalle</th><th></th></tr></thead>
       <tbody>${lista
         .map((a) => {
           const p = partida(a.partidaId);
@@ -335,6 +359,7 @@ function renderAlertas() {
             <td class="nowrap">${fechaHora(a.ts)}</td>
             <td>${badgeRiesgo(a.riesgo)}${a.demo ? ' <span class="tag demo">Simulación</span>' : ''}</td>
             <td><a href="#" class="link" data-cliente="${esc(c && c.id)}">${esc(c ? c.nombre : '—')}</a></td>
+            <td class="titular-cell">${p ? titularHtml(p) : '—'}</td>
             <td class="mono nowrap"><strong>${esc(p ? p.partida : '—')}</strong><span class="muted block small">${esc(p ? REGISTROS[p.registro] : '')}</span></td>
             <td><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong></td>
             <td class="muted wrap">${esc(a.detalle || '—')}</td>
@@ -353,7 +378,7 @@ function abrirDrawer(id) {
   const c = cliente(id);
   if (!c) return;
   const d = $('drawer');
-  d.dataset.cliente = id;
+  d.dataset.abierto = id;
   $('dProducto').className = `tag ${c.producto}`;
   $('dProducto').textContent = c.producto === 'confirming' ? 'Confirming' : 'Factoring';
   $('dNombre').textContent = c.nombre;
@@ -374,25 +399,38 @@ function abrirDrawer(id) {
       <div><dt>Fecha de contrato</dt><dd>${fecha(c.fechaContrato)}</dd></div>
       <div><dt>Partida PJ</dt><dd class="mono">${esc(c.partidaPJ || '—')}${c.oficina ? ` · ${esc(c.oficina)}` : ''}</dd></div>
       <div><dt>Ubicación</dt><dd>${esc(c.ubicacion || '—')}</dd></div>
-      <div class="full"><dt>Garantías</dt><dd>${(c.avales || ['—']).map(esc).join('<br>')}</dd></div>
     </dl>
     ${c.nota ? `<p class="note">${esc(c.nota)}</p>` : ''}
 
     <h4>Partidas vigiladas <span class="muted">(${ps.length})</span></h4>
-    ${
-      ps.length
-        ? `<ul class="plist">${ps
-            .map(
-              (p) => `<li>
-                ${bell(p.alertaRegistral)}
-                <div><strong class="mono">${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}
-                  <span class="muted block">${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · ${fecha(p.fechaRegistro)}</span></div>
-                <button class="btn btn-ghost btn-sm" data-accion="alerta" data-id="${esc(p.id)}">+ Alerta</button>
-              </li>`
-            )
-            .join('')}</ul>`
-        : vacio('Sin partidas. Agrega las partidas de la consulta SUNARP.')
-    }
+    ${grupoPartidas({
+      tipo: 'cliente',
+      titulo: c.nombre,
+      sub: `Empresa cliente · RUC ${c.ruc}`,
+      lista: ps.filter((p) => !esDelAval(p)),
+      clienteId: id,
+      titularId: 'cliente',
+    })}
+    ${avalesDe(c)
+      .map((a) => {
+        const otro = a.clienteId && cliente(a.clienteId);
+        return grupoPartidas({
+          tipo: 'aval',
+          titulo: a.nombre,
+          sub: [
+            `Aval ${a.tipo === 'juridica' ? 'persona jurídica' : 'persona natural'}`,
+            a.ruc ? `RUC ${a.ruc}` : '',
+            a.partidaPJ ? `Partida PJ ${a.partidaPJ}` : '',
+          ].filter(Boolean).join(' · '),
+          nota: a.nota || (otro ? `También es cliente de Global (${otro.producto}).` : ''),
+          otroCliente: otro ? otro.id : '',
+          lista: ps.filter((p) => p.titular === a.id),
+          clienteId: id,
+          titularId: a.id,
+        });
+      })
+      .join('')}
+    ${avalesDe(c).length ? '' : '<p class="muted small">Este cliente no tiene avales registrados.</p>'}
 
     <h4>Alertas <span class="muted">(${als.length})</span></h4>
     ${
@@ -400,7 +438,7 @@ function abrirDrawer(id) {
         ? `<ul class="feed">${als
             .map((a) => {
               const p = partida(a.partidaId);
-              return `<li class="feed-item"><i class="dot ${a.riesgo}"></i><div><strong>${esc(MOVIMIENTOS[a.mov])}</strong> · Partida ${esc(p ? p.partida : '')}
+              return `<li class="feed-item"><i class="dot ${a.riesgo}"></i><div><strong>${esc(MOVIMIENTOS[a.mov])}</strong> · Partida ${esc(p ? p.partida : '')}${p && esDelAval(p) ? ` (aval ${esc(titular(p).nombre)})` : ''}
                 <span class="muted block">${fechaHora(a.ts)}${a.detalle ? ' · ' + esc(a.detalle) : ''}</span></div>${badgeRiesgo(a.riesgo)}</li>`;
             })
             .join('')}</ul>`
@@ -417,6 +455,34 @@ function abrirDrawer(id) {
   d.setAttribute('aria-hidden', 'false');
   document.body.classList.add('drawer-open');
 }
+function grupoPartidas({ tipo, titulo, sub, nota, otroCliente, lista, clienteId, titularId }) {
+  return `<div class="titular-box ${tipo}">
+    <div class="titular-head">
+      <span class="tag ${tipo === 'aval' ? 'aval' : 'empresa'}">${tipo === 'aval' ? 'Aval' : 'Cliente'}</span>
+      <div class="titular-info">
+        <strong>${esc(titulo)}</strong>
+        <span class="muted block small">${esc(sub)}</span>
+        ${nota ? `<span class="muted block small">${esc(nota)}${otroCliente ? ` <a href="#" class="link" data-cliente="${esc(otroCliente)}">Ver ficha</a>` : ''}</span>` : ''}
+      </div>
+      <button class="btn btn-ghost btn-sm" data-accion="partida-titular" data-id="${esc(clienteId)}" data-titular="${esc(titularId)}">+ Partida</button>
+    </div>
+    ${
+      lista.length
+        ? `<ul class="plist">${lista
+            .map(
+              (p) => `<li>
+                ${bell(p.alertaRegistral)}
+                <div><strong class="mono">${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}
+                  <span class="muted block">${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · ${fecha(p.fechaRegistro)}</span></div>
+                <button class="btn btn-ghost btn-sm" data-accion="alerta" data-id="${esc(p.id)}">+ Alerta</button>
+              </li>`
+            )
+            .join('')}</ul>`
+        : '<p class="muted small sin-partidas">Sin partidas en Alerta Registral.</p>'
+    }
+  </div>`;
+}
+
 function cerrarDrawer() {
   $('drawer').classList.remove('open');
   $('drawer').setAttribute('aria-hidden', 'true');
@@ -440,17 +506,33 @@ function opcionesClientes(sel, soloConPartidas = false) {
 function opcionesPartidas(cid) {
   const ps = partidasDe(cid);
   $('alPartida').innerHTML = ps.length
-    ? ps.map((p) => `<option value="${esc(p.id)}">${esc(p.partida)} · ${esc(REGISTROS[p.registro] || '')}</option>`).join('')
+    ? ps
+        .map((p) => {
+          const t = titular(p);
+          return `<option value="${esc(p.id)}">${esc(p.partida)} · ${esc(REGISTROS[p.registro] || '')} · ${t.tipo === 'aval' ? 'Aval: ' : ''}${esc(t.nombre)}</option>`;
+        })
+        .join('')
     : `<option value="">${cid ? 'Este cliente no tiene partidas' : 'Selecciona un cliente primero'}</option>`;
 }
 
-function abrirModal(id, { cliente: cid, partida: pid } = {}) {
+function opcionesTitular(cid) {
+  const c = cliente(cid);
+  $('parTitular').innerHTML = c
+    ? `<option value="cliente">Cliente · ${esc(c.nombre)}</option>` +
+      avalesDe(c).map((a) => `<option value="${esc(a.id)}">Aval · ${esc(a.nombre)}</option>`).join('')
+    : '<option value="">Selecciona un cliente primero</option>';
+}
+$('parCliente').addEventListener('change', (e) => opcionesTitular(e.target.value));
+
+function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
   const m = $(id);
   m.querySelector('form').reset();
   m.querySelectorAll('.form-msg').forEach((x) => (x.textContent = ''));
   if (id === 'modalPartida') {
     opcionesClientes($('parCliente'));
     if (cid) $('parCliente').value = cid;
+    opcionesTitular($('parCliente').value);
+    if (tid) $('parTitular').value = tid;
     $('parFecha').value = new Date().toISOString().slice(0, 10);
   }
   if (id === 'modalAlerta') {
@@ -475,7 +557,7 @@ document.querySelectorAll('dialog').forEach((d) =>
 // ---------- Clics ----------
 document.addEventListener('click', (e) => {
   const abrir = e.target.closest('[data-abrir]');
-  if (abrir) return abrirModal(abrir.dataset.abrir, { cliente: $('drawer').classList.contains('open') ? $('drawer').dataset.cliente : '' });
+  if (abrir) return abrirModal(abrir.dataset.abrir, { cliente: $('drawer').classList.contains('open') ? $('drawer').dataset.abierto : '' });
 
   const cerrar = e.target.closest('[data-cerrar]');
   if (cerrar) {
@@ -489,6 +571,7 @@ document.addEventListener('click', (e) => {
     const id = acc.dataset.id;
     switch (acc.dataset.accion) {
       case 'partida': return abrirModal('modalPartida', { cliente: id });
+      case 'partida-titular': return abrirModal('modalPartida', { cliente: id, titular: acc.dataset.titular });
       case 'alerta': return abrirModal('modalAlerta', { partida: id });
       case 'alerta-cliente': return abrirModal('modalAlerta', { cliente: id });
       case 'simulacion': return cargarSimulacion();
@@ -559,6 +642,7 @@ $('formPartida').addEventListener('submit', (e) => {
   extra.partidas.push({
     id: uid(),
     clienteId,
+    titular: $('parTitular').value || 'cliente',
     registro: $('parRegistro').value,
     partida: numero,
     ficha: $('parFicha').value.trim(),
@@ -604,11 +688,11 @@ function cargarSimulacion() {
       ruc: '20000000001',
       ubicacion: 'Simulación',
       fechaContrato: new Date().toISOString().slice(0, 10),
-      avales: ['1 aval persona natural (ficticio)'],
+      avales: [{ id: 'demo-a1', tipo: 'natural', nombre: 'AVAL DE EJEMPLO (FICTICIO)' }],
     });
     extra.partidas.push(
-      { id: 'demo-p1', clienteId: 'demo', demo: true, registro: 'inmueble', partida: '00000001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true },
-      { id: 'demo-p2', clienteId: 'demo', demo: true, registro: 'vehicular', partida: '00000002', ficha: 'XXX-001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true }
+      { id: 'demo-p1', clienteId: 'demo', titular: 'demo-a1', demo: true, registro: 'inmueble', partida: '00000001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true },
+      { id: 'demo-p2', clienteId: 'demo', titular: 'cliente', demo: true, registro: 'vehicular', partida: '00000002', ficha: 'XXX-001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true }
     );
     extra.alertas.push(
       { id: uid(), demo: true, partidaId: 'demo-p1', mov: 'venta', riesgo: 'alto', detalle: 'Presentación de compraventa a favor de un tercero.', ts: h(3) },
