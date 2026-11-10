@@ -22,7 +22,12 @@
        fechaRegistro: '2026-11-09',  // fecha de afiliación en Alerta Registral
        estado: 'Activa',
        alertaRegistral: true,
+       movimientos: [               // avisos de SUNARP sobre esta partida
+         { fecha: '2026-11-10', hora: '09:15', mov: 'venta', riesgo: 'alto', detalle: '...' },
+       ],
      }
+   mov: 'venta' | 'embargo' | 'garantia' | 'anotacion' | 'cancelacion' | 'otro'
+   riesgo: 'alto' | 'medio' | 'bajo'
 ==================================== */
 
 const CARTERA = [
@@ -117,6 +122,16 @@ const CARTERA = [
         fechaRegistro: '2026-11-09',
         estado: 'Activa',
         alertaRegistral: true,
+        movimientos: [
+          {
+            fecha: '2026-11-10',
+            hora: '09:15',
+            mov: 'venta',
+            riesgo: 'alto',
+            detalle: 'Aviso de Alerta Registral: presentación de título de compraventa del inmueble a favor de un tercero.',
+            prueba: true, // movimiento de PRUEBA para la demo, no es un aviso real de SUNARP
+          },
+        ],
       },
       {
         titular: 'f41-a1',

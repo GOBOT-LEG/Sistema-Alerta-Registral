@@ -13,12 +13,12 @@ const REGISTROS = {
   vehicular: 'Registro de Propiedad Vehicular',
 };
 const MOVIMIENTOS = {
-  venta: 'Venta o transferencia',
+  venta: 'Compraventa / transferencia',
   embargo: 'Embargo',
   garantia: 'Hipoteca / garantía',
   anotacion: 'Anotación / aviso',
   cancelacion: 'Cancelación de carga',
-  otro: 'Otro',
+  otro: 'Otro movimiento',
 };
 const RIESGO_POR_MOV = { venta: 'alto', embargo: 'medio', garantia: 'medio', anotacion: 'bajo', cancelacion: 'bajo' };
 const RIESGO_TXT = { alto: 'Alto', medio: 'Medio', bajo: 'Bajo' };
@@ -31,11 +31,26 @@ const DOCUMENTOS = [
   ['copiaLiteral', 'Copia literal'],
   ['reporteTrib', 'Reporte tributario'],
 ];
-const TITULOS = { resumen: 'Resumen', clientes: 'Clientes', partidas: 'Partidas vigiladas', alertas: 'Alertas registrales' };
+const TITULOS = {
+  resumen: 'Resumen',
+  clientes: 'Clientes',
+  partidas: 'Partidas vigiladas',
+  alertas: 'Alertas registrales',
+  cliente: 'Ficha del cliente',
+};
 
 // ---------- Estado ----------
 let extra = { clientes: [], partidas: [], alertas: [] };
-const ui = { vista: 'resumen', busqueda: '', producto: 'todos', sinPartidas: false, registro: 'todos', riesgo: 'todos' };
+const ui = {
+  vista: 'resumen',
+  clienteId: '',
+  historialPartida: 'todas',
+  busqueda: '',
+  producto: 'todos',
+  sinPartidas: false,
+  registro: 'todos',
+  riesgo: 'todos',
+};
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -49,6 +64,7 @@ function cargar() {
   } catch { /* empezar vacío */ }
 }
 
+// ---------- Datos ----------
 const base = () => (typeof CARTERA !== 'undefined' ? CARTERA : []);
 function clientes() {
   return [...base().map((c) => ({ ...c, base: true })), ...extra.clientes];
@@ -58,26 +74,40 @@ function partidas() {
   base().forEach((c) => (c.partidas || []).forEach((p, i) => lista.push({ ...p, id: `${c.id}-p${i}`, clienteId: c.id, base: true })));
   return [...lista, ...extra.partidas];
 }
+function tsDe(fechaIso, hora) {
+  const [y, m, d] = String(fechaIso).split('-').map(Number);
+  const [hh, mm] = String(hora || '00:00').split(':').map(Number);
+  return new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
+}
+// Alertas: las de clientes.js (movimientos de cada partida) + las registradas en este navegador
+function alertas() {
+  const lista = [];
+  partidas()
+    .filter((p) => p.base)
+    .forEach((p) =>
+      (p.movimientos || []).forEach((m, i) =>
+        lista.push({ ...m, id: `${p.id}-m${i}`, partidaId: p.id, ts: tsDe(m.fecha, m.hora), base: true })
+      )
+    );
+  return [...lista, ...extra.alertas];
+}
+
 const cliente = (id) => clientes().find((c) => c.id === id);
 const partida = (id) => partidas().find((p) => p.id === id);
 const partidasDe = (cid) => partidas().filter((p) => p.clienteId === cid);
 const avalesDe = (c) => (c && Array.isArray(c.avales) ? c.avales.filter((a) => a && typeof a === 'object') : []);
 const esDelAval = (p) => p.titular && p.titular !== 'cliente';
+const alertasDePartida = (pid) => alertas().filter((a) => a.partidaId === pid);
+const alertasDe = (cid) => {
+  const ids = partidasDe(cid).map((p) => p.id);
+  return alertas().filter((a) => ids.includes(a.partidaId));
+};
 function titular(p) {
   const c = cliente(p.clienteId);
   if (!esDelAval(p)) return { tipo: 'cliente', nombre: c ? c.nombre : '—' };
   const a = avalesDe(c).find((x) => x.id === p.titular);
   return { tipo: 'aval', nombre: a ? a.nombre : 'Aval', aval: a };
 }
-function titularHtml(p, corto = false) {
-  const t = titular(p);
-  const etiqueta = t.tipo === 'aval' ? '<span class="tag aval">Aval</span>' : '<span class="tag empresa">Cliente</span>';
-  return corto ? etiqueta : `${etiqueta} <span class="titular-nombre">${esc(t.nombre)}</span>`;
-}
-const alertasDe = (cid) => {
-  const ids = partidasDe(cid).map((p) => p.id);
-  return extra.alertas.filter((a) => ids.includes(a.partidaId));
-};
 
 // ---------- Utilidades ----------
 function esc(t) {
@@ -93,9 +123,7 @@ function fecha(iso) {
 function fechaHora(ts) {
   return new Date(ts).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
-function riesgoMax(lista) {
-  return ['alto', 'medio', 'bajo'].find((r) => lista.some((a) => a.riesgo === r)) || '';
-}
+const riesgoMax = (lista) => ['alto', 'medio', 'bajo'].find((r) => lista.some((a) => a.riesgo === r)) || '';
 function coincide(...campos) {
   const q = ui.busqueda.trim().toLowerCase();
   return !q || campos.some((c) => String(c || '').toLowerCase().includes(q));
@@ -109,40 +137,51 @@ function toast(msg) {
 }
 const tagProducto = (p) => `<span class="tag ${p}">${p === 'confirming' ? 'Confirming' : 'Factoring'}</span>`;
 const badgeRiesgo = (r) => `<span class="badge ${r}"><i class="dot ${r}"></i>${RIESGO_TXT[r]}</span>`;
+const tagOrigen = (a) => (a.prueba ? ' <span class="tag prueba">Prueba</span>' : a.demo ? ' <span class="tag demo">Simulación</span>' : '');
 const bell = (on) =>
   `<span class="bell ${on ? 'on' : ''}" title="${on ? 'Notificaciones activas en Alerta Registral' : 'Sin afiliar a Alerta Registral'}"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3h-3v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span>`;
-
+function titularHtml(p) {
+  const t = titular(p);
+  const etiqueta = t.tipo === 'aval' ? '<span class="tag aval">Aval</span>' : '<span class="tag empresa">Cliente</span>';
+  return `${etiqueta} <span class="titular-nombre">${esc(t.nombre)}</span>`;
+}
 function estadoCliente(c) {
   const r = riesgoMax(alertasDe(c.id));
   if (r) return badgeRiesgo(r);
   if (partidasDe(c.id).length) return '<span class="badge ok">Vigilado</span>';
   return '<span class="badge pend">Sin partidas</span>';
 }
-function vacio(texto, boton = '') {
-  return `<div class="empty"><p>${texto}</p>${boton}</div>`;
-}
+const vacio = (texto, boton = '') => `<div class="empty"><p>${texto}</p>${boton}</div>`;
+const linkCliente = (c) => (c ? `<a href="#cliente/${esc(c.id)}" class="link">${esc(c.nombre)}</a>` : '—');
 
 // ---------- Navegación ----------
-function irA(vista) {
+function irA(hash) {
+  let vista = hash || 'resumen';
+  if (vista.startsWith('cliente/')) {
+    const id = decodeURIComponent(vista.slice(8));
+    if (ui.vista !== 'cliente' || ui.clienteId !== id) ui.historialPartida = 'todas';
+    ui.clienteId = id;
+    vista = cliente(id) ? 'cliente' : 'clientes';
+  }
   if (!TITULOS[vista]) vista = 'resumen';
   ui.vista = vista;
   document.querySelectorAll('.vista').forEach((v) => (v.hidden = v.id !== `vista-${vista}`));
-  document.querySelectorAll('.menu-item').forEach((a) => a.classList.toggle('active', a.dataset.vista === vista));
+  const menuActivo = vista === 'cliente' ? 'clientes' : vista;
+  document.querySelectorAll('.menu-item').forEach((a) => a.classList.toggle('active', a.dataset.vista === menuActivo));
   $('tituloVista').textContent = TITULOS[vista];
+  document.body.dataset.vista = vista;
   document.body.classList.remove('menu-open');
+  window.scrollTo(0, 0);
   render();
 }
 window.addEventListener('hashchange', () => irA(location.hash.slice(1)));
 
 $('menuBtn').addEventListener('click', () => document.body.classList.toggle('menu-open'));
-$('overlay').addEventListener('click', () => {
-  document.body.classList.remove('menu-open');
-  cerrarDrawer();
-});
+$('overlay').addEventListener('click', () => document.body.classList.remove('menu-open'));
 
 $('busquedaGlobal').addEventListener('input', (e) => {
   ui.busqueda = e.target.value;
-  if (ui.vista === 'resumen' && ui.busqueda) location.hash = 'clientes';
+  if ((ui.vista === 'resumen' || ui.vista === 'cliente') && ui.busqueda) location.hash = 'clientes';
   else render();
 });
 
@@ -162,11 +201,6 @@ $('soloSinPartidas').addEventListener('change', (e) => {
   ui.sinPartidas = e.target.checked;
   render();
 });
-
-function setSegmented(id, clave, valor) {
-  ui[clave] = valor;
-  $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('active', x.dataset.valor === valor));
-}
 document.querySelectorAll('[data-filtro-rapido]').forEach((a) =>
   a.addEventListener('click', () => {
     ui.sinPartidas = true;
@@ -174,27 +208,31 @@ document.querySelectorAll('[data-filtro-rapido]').forEach((a) =>
   })
 );
 document.querySelectorAll('[data-riesgo-rapido]').forEach((a) =>
-  a.addEventListener('click', () => setSegmented('filtroRiesgo', 'riesgo', a.dataset.riesgoRapido))
+  a.addEventListener('click', () => {
+    ui.riesgo = a.dataset.riesgoRapido;
+    $('filtroRiesgo').querySelectorAll('button').forEach((x) => x.classList.toggle('active', x.dataset.valor === ui.riesgo));
+  })
 );
 
 // ---------- Render general ----------
 function render() {
   const cs = clientes();
   const ps = partidas();
+  const als = alertas();
   $('menuClientes').textContent = cs.length;
   $('menuPartidas').textContent = ps.length;
-  $('menuAlertas').textContent = extra.alertas.length;
-  $('menuAlertas').hidden = !extra.alertas.length;
+  $('menuAlertas').textContent = als.length;
+  $('menuAlertas').hidden = !als.length;
 
-  if (ui.vista === 'resumen') renderResumen(cs, ps);
+  if (ui.vista === 'resumen') renderResumen(cs, ps, als);
   if (ui.vista === 'clientes') renderClientes(cs);
   if (ui.vista === 'partidas') renderPartidas(ps);
-  if (ui.vista === 'alertas') renderAlertas();
-  if ($('drawer').classList.contains('open')) abrirDrawer($('drawer').dataset.abierto);
+  if (ui.vista === 'alertas') renderAlertas(als);
+  if (ui.vista === 'cliente') renderCliente(ui.clienteId);
 }
 
 // ---------- Resumen ----------
-function renderResumen(cs, ps) {
+function renderResumen(cs, ps, als) {
   const fact = cs.filter((c) => c.producto === 'factoring');
   const conf = cs.filter((c) => c.producto === 'confirming');
   const conPartidas = (lista) => lista.filter((c) => partidasDe(c.id).length).length;
@@ -202,29 +240,29 @@ function renderResumen(cs, ps) {
   $('kpiClientes').textContent = cs.length;
   $('kpiFact').textContent = fact.length;
   $('kpiConf').textContent = conf.length;
+  $('kpiAvales').textContent = cs.reduce((n, c) => n + avalesDe(c).length, 0);
   $('kpiPartidas').textContent = ps.length;
   $('kpiActivas').textContent = ps.filter((p) => p.alertaRegistral).length;
   $('kpiDeAvales').textContent = ps.filter(esDelAval).length;
-  $('kpiAvales').textContent = cs.reduce((n, c) => n + avalesDe(c).length, 0);
   $('kpiSinPartidas').textContent = cs.length - conPartidas(cs);
-  $('kpiAlto').textContent = extra.alertas.filter((a) => a.riesgo === 'alto').length;
-  $('kpiAlertas').textContent = extra.alertas.length;
+  $('kpiAlto').textContent = als.filter((a) => a.riesgo === 'alto').length;
+  $('kpiAlertas').textContent = als.length;
 
-  const ultimas = [...extra.alertas].sort((a, b) => b.ts - a.ts).slice(0, 5);
+  const ultimas = [...als].sort((a, b) => b.ts - a.ts).slice(0, 5);
   $('resumenAlertas').innerHTML = ultimas.length
     ? `<ul class="feed">${ultimas
         .map((a) => {
           const p = partida(a.partidaId);
           const c = p && cliente(p.clienteId);
-          return `<li class="feed-item" data-cliente="${esc(c && c.id)}">
+          return `<li><a class="feed-item" href="#cliente/${esc(c && c.id)}">
             <i class="dot ${a.riesgo}"></i>
-            <div><strong>${esc(MOVIMIENTOS[a.mov])}</strong> · ${esc(c ? c.nombre : '—')}
+            <div><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong>${tagOrigen(a)} · ${esc(c ? c.nombre : '—')}
               <span class="muted block">Partida ${esc(p ? p.partida : '—')}${p && esDelAval(p) ? ` · aval ${esc(titular(p).nombre)}` : ''} · ${fechaHora(a.ts)}</span></div>
             ${badgeRiesgo(a.riesgo)}
-          </li>`;
+          </a></li>`;
         })
         .join('')}</ul>`
-    : vacio('Sin alertas. Las partidas vigiladas no registran movimientos.', '<button class="btn btn-ghost btn-sm" data-accion="simulacion">Cargar simulación</button>');
+    : vacio('Sin alertas. Las partidas vigiladas no registran movimientos.');
 
   const barra = (titulo, total, con) => {
     const pct = total ? Math.round((con / total) * 100) : 0;
@@ -240,7 +278,7 @@ function renderResumen(cs, ps) {
       <span class="muted">Pendientes de consulta SUNARP</span>
       <div class="chips">${cs
         .filter((c) => !partidasDe(c.id).length)
-        .map((c) => `<button class="chip" data-cliente="${esc(c.id)}">${esc(c.nombre)}</button>`)
+        .map((c) => `<a class="chip" href="#cliente/${esc(c.id)}">${esc(c.nombre)}</a>`)
         .join('')}</div>
     </div>`;
 
@@ -274,10 +312,9 @@ function renderClientes(cs) {
               const docs = c.documentos || {};
               const n = DOCUMENTOS.filter(([k]) => docs[k]).length;
               const ps = partidasDe(c.id);
-              const np = ps.length;
               const npAval = ps.filter(esDelAval).length;
               const avs = avalesDe(c);
-              return `<tr data-cliente="${esc(c.id)}">
+              return `<tr data-ir="cliente/${esc(c.id)}" tabindex="0">
                 <td><strong class="nombre">${esc(c.nombre)}</strong><span class="muted block">${esc(c.ubicacion || '')}</span></td>
                 <td class="mono">${esc(c.ruc)}</td>
                 <td>${tagProducto(c.producto)}${c.demo ? ' <span class="tag demo">Simulación</span>' : ''}</td>
@@ -287,13 +324,10 @@ function renderClientes(cs) {
                     : '<span class="muted">—</span>'
                 }</td>
                 <td>${fecha(c.fechaContrato)}</td>
-                <td>${c.documentos ? `<span class="progress" title="${n} de ${DOCUMENTOS.length} documentos"><span style="width:${(n / DOCUMENTOS.length) * 100}%"></span></span> <span class="muted">${n}/${DOCUMENTOS.length}</span>` : '<span class="muted">—</span>'}</td>
-                <td class="c"><strong>${np}</strong>${npAval ? `<span class="muted block small nowrap">${npAval} de aval</span>` : ''}</td>
+                <td class="nowrap">${c.documentos ? `<span class="progress"><span style="width:${(n / DOCUMENTOS.length) * 100}%"></span></span> <span class="muted">${n}/${DOCUMENTOS.length}</span>` : '<span class="muted">—</span>'}</td>
+                <td class="c"><strong>${ps.length}</strong>${npAval ? `<span class="muted block small nowrap">${npAval} de aval</span>` : ''}</td>
                 <td>${estadoCliente(c)}</td>
-                <td class="r nowrap">
-                  <button class="btn btn-ghost btn-sm" data-accion="partida" data-id="${esc(c.id)}">+ Partida</button>
-                  <button class="btn btn-ghost btn-sm" data-cliente="${esc(c.id)}">Ver</button>
-                </td>
+                <td class="r chevron">›</td>
               </tr>`;
             })
             .join('')
@@ -305,25 +339,21 @@ function renderClientes(cs) {
 function tablaPartidasHtml(lista) {
   return `
     <thead><tr>
-      <th>Of. Reg.</th><th>Registro jurídico</th><th>Fecha de registro</th><th>N.° partida</th><th>Titular</th><th>Cliente Global</th><th>Estado</th><th class="c">Notif.</th><th></th>
+      <th>Of. Reg.</th><th>Registro jurídico</th><th>Fecha de registro</th><th>N.° partida</th><th>Titular</th><th>Cliente Global</th><th>Último movimiento</th><th class="c">Notif.</th>
     </tr></thead>
     <tbody>${lista
       .map((p) => {
         const c = cliente(p.clienteId);
-        const n = extra.alertas.filter((a) => a.partidaId === p.id).length;
-        return `<tr>
+        const ult = alertasDePartida(p.id).sort((a, b) => b.ts - a.ts)[0];
+        return `<tr data-ir="cliente/${esc(p.clienteId)}" tabindex="0">
           <td><strong>${esc((p.oficina || '').toUpperCase())}</strong>${p.zona ? `<span class="muted block small nowrap">${esc(p.zona)}</span>` : ''}</td>
           <td>${esc(REGISTROS[p.registro] || p.registro)}</td>
           <td>${fecha(p.fechaRegistro)}</td>
-          <td class="mono"><strong>${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}</td>
+          <td class="mono nowrap"><strong>${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}</td>
           <td class="titular-cell">${titularHtml(p)}</td>
-          <td><a href="#" class="link" data-cliente="${esc(c && c.id)}">${esc(c ? c.nombre : '—')}</a></td>
-          <td><span class="badge ${p.estado === 'Activa' || p.alertaRegistral ? 'ok' : 'pend'}">${esc(p.estado || (p.alertaRegistral ? 'Activa' : 'Pendiente'))}</span></td>
-          <td class="c">${bell(p.alertaRegistral)}${n ? `<span class="bell-count">${n}</span>` : ''}</td>
-          <td class="r nowrap">
-            <button class="btn btn-ghost btn-sm" data-accion="alerta" data-id="${esc(p.id)}">+ Alerta</button>
-            ${p.base ? '' : `<button class="icon-btn sm" data-accion="borrar-partida" data-id="${esc(p.id)}" aria-label="Quitar partida">✕</button>`}
-          </td>
+          <td>${esc(c ? c.nombre : '—')}</td>
+          <td>${ult ? `${badgeRiesgo(ult.riesgo)} <span class="small">${esc(MOVIMIENTOS[ult.mov] || ult.mov)}</span>` : '<span class="badge ok">Sin movimientos</span>'}</td>
+          <td class="c">${bell(p.alertaRegistral)}</td>
         </tr>`;
       })
       .join('')}</tbody>`;
@@ -336,12 +366,12 @@ function renderPartidas(ps) {
   });
   $('tablaPartidas').innerHTML = lista.length
     ? tablaPartidasHtml(lista)
-    : `<tbody><tr><td>${vacio('No hay partidas con esos filtros.', '<button class="btn btn-primary btn-sm" data-abrir="modalPartida">+ Agregar partida</button>')}</td></tr></tbody>`;
+    : `<tbody><tr><td>${vacio('No hay partidas con esos filtros.')}</td></tr></tbody>`;
 }
 
 // ---------- Alertas ----------
-function renderAlertas() {
-  const lista = [...extra.alertas]
+function renderAlertas(als) {
+  const lista = [...als]
     .sort((a, b) => b.ts - a.ts)
     .filter((a) => {
       const p = partida(a.partidaId);
@@ -355,138 +385,225 @@ function renderAlertas() {
         .map((a) => {
           const p = partida(a.partidaId);
           const c = p && cliente(p.clienteId);
-          return `<tr class="row-${a.riesgo}">
+          return `<tr class="row-${a.riesgo}" data-ir="cliente/${esc(c && c.id)}" tabindex="0">
             <td class="nowrap">${fechaHora(a.ts)}</td>
-            <td>${badgeRiesgo(a.riesgo)}${a.demo ? ' <span class="tag demo">Simulación</span>' : ''}</td>
-            <td><a href="#" class="link" data-cliente="${esc(c && c.id)}">${esc(c ? c.nombre : '—')}</a></td>
+            <td class="nowrap">${badgeRiesgo(a.riesgo)}${tagOrigen(a)}</td>
+            <td>${esc(c ? c.nombre : '—')}</td>
             <td class="titular-cell">${p ? titularHtml(p) : '—'}</td>
             <td class="mono nowrap"><strong>${esc(p ? p.partida : '—')}</strong><span class="muted block small">${esc(p ? REGISTROS[p.registro] : '')}</span></td>
             <td><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong></td>
             <td class="muted wrap">${esc(a.detalle || '—')}</td>
-            <td class="r"><button class="icon-btn sm" data-accion="borrar-alerta" data-id="${esc(a.id)}" aria-label="Eliminar alerta">✕</button></td>
+            <td class="r">${a.base ? '' : `<button class="icon-btn sm" data-accion="borrar-alerta" data-id="${esc(a.id)}" aria-label="Eliminar alerta">✕</button>`}</td>
           </tr>`;
         })
         .join('')}</tbody>`
-    : `<tbody><tr><td>${vacio(
-        extra.alertas.length ? 'No hay alertas con esos filtros.' : 'Sin alertas registradas. Cuando SUNARP notifique un movimiento, regístralo aquí.',
-        '<button class="btn btn-primary btn-sm" data-abrir="modalAlerta">+ Registrar alerta</button>'
-      )}</td></tr></tbody>`;
+    : `<tbody><tr><td>${vacio(als.length ? 'No hay alertas con esos filtros.' : 'Sin alertas registradas. Cuando SUNARP notifique un movimiento, regístralo con “+ Registrar alerta”.')}</td></tr></tbody>`;
 }
 
-// ---------- Panel de detalle ----------
-function abrirDrawer(id) {
-  const c = cliente(id);
-  if (!c) return;
-  const d = $('drawer');
-  d.dataset.abierto = id;
-  $('dProducto').className = `tag ${c.producto}`;
-  $('dProducto').textContent = c.producto === 'confirming' ? 'Confirming' : 'Factoring';
-  $('dNombre').textContent = c.nombre;
-  $('dRuc').textContent = `RUC ${c.ruc}`;
+// ---------- Página del cliente ----------
+function eventosCliente(cid) {
+  const ev = [];
+  partidasDe(cid).forEach((p) => {
+    if (p.fechaRegistro) {
+      ev.push({ tipo: 'afiliacion', partidaId: p.id, ts: tsDe(p.fechaRegistro), activo: p.alertaRegistral });
+    }
+  });
+  alertasDe(cid).forEach((a) => ev.push({ tipo: 'alerta', ...a }));
+  return ev.sort((a, b) => b.ts - a.ts);
+}
 
+function renderCliente(id) {
+  const c = cliente(id);
+  const cont = $('vista-cliente');
+  if (!c) {
+    cont.innerHTML = vacio('Cliente no encontrado.', '<a class="btn btn-ghost" href="#clientes">Volver a clientes</a>');
+    return;
+  }
   const ps = partidasDe(id);
   const als = alertasDe(id).sort((a, b) => b.ts - a.ts);
+  const riesgo = riesgoMax(als);
   const docs = c.documentos || {};
+  const nDocs = DOCUMENTOS.filter(([k]) => docs[k]).length;
+  const avs = avalesDe(c);
+  const alto = als.find((a) => a.riesgo === 'alto');
 
-  $('drawerBody').innerHTML = `
-    <div class="drawer-actions">
-      <button class="btn btn-primary btn-sm" data-accion="partida" data-id="${esc(id)}">+ Partida</button>
-      <button class="btn btn-ghost btn-sm" data-accion="alerta-cliente" data-id="${esc(id)}" ${ps.length ? '' : 'disabled'}>+ Alerta</button>
-      ${c.base ? '' : `<button class="btn btn-ghost btn-sm btn-danger-text" data-accion="borrar-cliente" data-id="${esc(id)}">Eliminar</button>`}
+  const ev = eventosCliente(id).filter((e) => ui.historialPartida === 'todas' || e.partidaId === ui.historialPartida);
+
+  cont.innerHTML = `
+    <a class="back" href="#clientes">← Clientes</a>
+
+    <div class="panel cliente-hero ${riesgo ? 'hero-' + riesgo : ''}">
+      <div class="hero-main">
+        <div class="hero-tags">${tagProducto(c.producto)} ${estadoCliente(c)}${c.demo ? ' <span class="tag demo">Simulación</span>' : ''}</div>
+        <h2>${esc(c.nombre)}</h2>
+        <div class="hero-meta">
+          <span><b>RUC</b> ${esc(c.ruc)}</span>
+          ${c.partidaPJ ? `<span><b>Partida PJ</b> ${esc(c.partidaPJ)}${c.oficina ? ' · ' + esc(c.oficina) : ''}</span>` : ''}
+          ${c.ubicacion ? `<span><b>Ubicación</b> ${esc(c.ubicacion)}</span>` : ''}
+          <span><b>Contrato</b> ${fecha(c.fechaContrato)}</span>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-ghost" data-accion="partida" data-id="${esc(id)}">+ Partida</button>
+        <button class="btn btn-primary" data-accion="alerta-cliente" data-id="${esc(id)}" ${ps.length ? '' : 'disabled title="Primero agrega una partida"'}>+ Registrar alerta</button>
+        ${c.base ? '' : `<button class="btn btn-ghost btn-danger-text" data-accion="borrar-cliente" data-id="${esc(id)}">Eliminar</button>`}
+      </div>
     </div>
-    <dl class="kv">
-      <div><dt>Estado</dt><dd>${estadoCliente(c)}</dd></div>
-      <div><dt>Fecha de contrato</dt><dd>${fecha(c.fechaContrato)}</dd></div>
-      <div><dt>Partida PJ</dt><dd class="mono">${esc(c.partidaPJ || '—')}${c.oficina ? ` · ${esc(c.oficina)}` : ''}</dd></div>
-      <div><dt>Ubicación</dt><dd>${esc(c.ubicacion || '—')}</dd></div>
-    </dl>
-    ${c.nota ? `<p class="note">${esc(c.nota)}</p>` : ''}
 
-    <h4>Partidas vigiladas <span class="muted">(${ps.length})</span></h4>
-    ${grupoPartidas({
-      tipo: 'cliente',
-      titulo: c.nombre,
-      sub: `Empresa cliente · RUC ${c.ruc}`,
-      lista: ps.filter((p) => !esDelAval(p)),
-      clienteId: id,
-      titularId: 'cliente',
-    })}
-    ${avalesDe(c)
-      .map((a) => {
-        const otro = a.clienteId && cliente(a.clienteId);
-        return grupoPartidas({
-          tipo: 'aval',
-          titulo: a.nombre,
-          sub: [
-            `Aval ${a.tipo === 'juridica' ? 'persona jurídica' : 'persona natural'}`,
-            a.ruc ? `RUC ${a.ruc}` : '',
-            a.partidaPJ ? `Partida PJ ${a.partidaPJ}` : '',
-          ].filter(Boolean).join(' · '),
-          nota: a.nota || (otro ? `También es cliente de Global (${otro.producto}).` : ''),
-          otroCliente: otro ? otro.id : '',
-          lista: ps.filter((p) => p.titular === a.id),
-          clienteId: id,
-          titularId: a.id,
-        });
-      })
-      .join('')}
-    ${avalesDe(c).length ? '' : '<p class="muted small">Este cliente no tiene avales registrados.</p>'}
-
-    <h4>Alertas <span class="muted">(${als.length})</span></h4>
     ${
-      als.length
-        ? `<ul class="feed">${als
-            .map((a) => {
-              const p = partida(a.partidaId);
-              return `<li class="feed-item"><i class="dot ${a.riesgo}"></i><div><strong>${esc(MOVIMIENTOS[a.mov])}</strong> · Partida ${esc(p ? p.partida : '')}${p && esDelAval(p) ? ` (aval ${esc(titular(p).nombre)})` : ''}
-                <span class="muted block">${fechaHora(a.ts)}${a.detalle ? ' · ' + esc(a.detalle) : ''}</span></div>${badgeRiesgo(a.riesgo)}</li>`;
-            })
-            .join('')}</ul>`
-        : '<p class="muted small">Sin movimientos registrados.</p>'
+      alto
+        ? (() => {
+            const p = partida(alto.partidaId);
+            return `<div class="banner alto">
+              <strong>Riesgo alto:</strong> ${esc(MOVIMIENTOS[alto.mov])} el ${fechaHora(alto.ts)} sobre la partida ${esc(p.partida)}
+              (${esc(REGISTROS[p.registro])}, ${esc(p.oficina)}) — titular ${esc(titular(p).tipo === 'aval' ? 'aval ' : '')}${esc(titular(p).nombre)}.${alto.prueba ? ' <span class="tag prueba">Prueba</span>' : ''}
+            </div>`;
+          })()
+        : ''
     }
 
-    ${
-      c.documentos
-        ? `<h4>Expediente</h4><ul class="docs">${DOCUMENTOS.map(([k, t]) => `<li class="${docs[k] ? 'si' : 'no'}">${docs[k] ? '✓' : '—'} ${t}</li>`).join('')}</ul>`
-        : ''
-    }`;
+    <div class="kpis">
+      <div class="kpi"><span class="kpi-label">Partidas vigiladas</span><strong>${ps.length}</strong><span class="kpi-sub">${ps.filter((p) => !esDelAval(p)).length} del cliente · ${ps.filter(esDelAval).length} de avales</span></div>
+      <div class="kpi"><span class="kpi-label">Avales</span><strong>${avs.length}</strong><span class="kpi-sub">${avs.filter((a) => a.tipo === 'juridica').length} empresa(s) · ${avs.filter((a) => a.tipo !== 'juridica').length} persona(s)</span></div>
+      <div class="kpi ${riesgo === 'alto' ? 'kpi-alto' : ''}"><span class="kpi-label">Alertas</span><strong>${als.length}</strong><span class="kpi-sub">${als.filter((a) => a.riesgo === 'alto').length} de riesgo alto</span></div>
+      <div class="kpi"><span class="kpi-label">Expediente</span><strong>${c.documentos ? `${nDocs}/${DOCUMENTOS.length}` : '—'}</strong><span class="kpi-sub">documentos en carpeta</span></div>
+    </div>
 
-  d.classList.add('open');
-  d.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('drawer-open');
+    <div class="cliente-grid">
+      <div class="col-main">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Historial de movimientos</h2>
+            ${
+              ps.length
+                ? `<select class="select-sm" id="filtroHistorial" aria-label="Filtrar por partida">
+                    <option value="todas">Todas las partidas</option>
+                    ${ps.map((p) => `<option value="${esc(p.id)}" ${ui.historialPartida === p.id ? 'selected' : ''}>${esc(p.partida)} · ${esc(REGISTROS[p.registro].replace('Registro de ', ''))}</option>`).join('')}
+                  </select>`
+                : ''
+            }
+          </div>
+          ${
+            ev.length
+              ? `<ol class="timeline">${ev.map(itemHistorial).join('')}</ol>`
+              : vacio(ps.length ? 'Sin movimientos para esta partida.' : 'Aún no hay partidas vigiladas para este cliente.')
+          }
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Partidas vigiladas</h2></div>
+          <div class="titulares">
+            ${grupoPartidas({ tipo: 'cliente', titulo: c.nombre, sub: `Empresa cliente · RUC ${c.ruc}`, lista: ps.filter((p) => !esDelAval(p)), clienteId: id, titularId: 'cliente' })}
+            ${avs
+              .map((a) =>
+                grupoPartidas({
+                  tipo: 'aval',
+                  titulo: a.nombre,
+                  sub: [`Aval ${a.tipo === 'juridica' ? 'persona jurídica' : 'persona natural'}`, a.ruc ? `RUC ${a.ruc}` : ''].filter(Boolean).join(' · '),
+                  lista: ps.filter((p) => p.titular === a.id),
+                  clienteId: id,
+                  titularId: a.id,
+                })
+              )
+              .join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-side">
+        <div class="panel">
+          <div class="panel-head"><h2>Avales</h2></div>
+          ${
+            avs.length
+              ? `<ul class="aval-list">${avs
+                  .map((a) => {
+                    const otro = a.clienteId && cliente(a.clienteId);
+                    const n = ps.filter((p) => p.titular === a.id).length;
+                    return `<li>
+                      <i class="aval-ico ${a.tipo === 'juridica' ? 'pj' : 'pn'}"></i>
+                      <div>
+                        <strong>${esc(a.nombre)}</strong>
+                        <span class="muted block small">${a.tipo === 'juridica' ? 'Persona jurídica' : 'Persona natural'}${a.ruc ? ' · RUC ' + esc(a.ruc) : ''}${a.partidaPJ ? ' · Partida ' + esc(a.partidaPJ) : ''}</span>
+                        ${a.nota ? `<span class="muted block small">${esc(a.nota)}</span>` : ''}
+                        ${otro ? `<a class="link small" href="#cliente/${esc(otro.id)}">También es cliente de Global →</a>` : ''}
+                      </div>
+                      <span class="pill">${n} partida${n === 1 ? '' : 's'}</span>
+                    </li>`;
+                  })
+                  .join('')}</ul>`
+              : '<p class="muted small">Sin avales registrados.</p>'
+          }
+          ${c.nota ? `<p class="note">${esc(c.nota)}</p>` : ''}
+        </div>
+
+        ${
+          c.documentos
+            ? `<div class="panel">
+                <div class="panel-head"><h2>Expediente</h2><span class="muted small">${nDocs}/${DOCUMENTOS.length}</span></div>
+                <ul class="docs">${DOCUMENTOS.map(([k, t]) => `<li class="${docs[k] ? 'si' : 'no'}">${docs[k] ? '✓' : '—'} ${t}</li>`).join('')}</ul>
+              </div>`
+            : ''
+        }
+      </div>
+    </div>`;
+
+  const f = $('filtroHistorial');
+  if (f) f.addEventListener('change', (e) => { ui.historialPartida = e.target.value; renderCliente(id); });
 }
-function grupoPartidas({ tipo, titulo, sub, nota, otroCliente, lista, clienteId, titularId }) {
+
+function itemHistorial(e) {
+  const p = partida(e.partidaId);
+  if (!p) return '';
+  const t = titular(p);
+  const meta = `Partida <b>${esc(p.partida)}</b>${p.ficha ? ` (${esc(p.ficha)})` : ''} · ${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · ${t.tipo === 'aval' ? 'Aval' : 'Cliente'}: ${esc(t.nombre)}`;
+  if (e.tipo === 'afiliacion') {
+    return `<li class="tl-item tl-info">
+      <span class="tl-dot"></span>
+      <div class="tl-body">
+        <div class="tl-top"><strong>${e.activo ? 'Afiliada a Alerta Registral' : 'Partida registrada'}</strong><span class="tl-date">${fecha(p.fechaRegistro)}</span></div>
+        <div class="tl-meta">${meta}</div>
+        <p class="muted small">${e.activo ? 'Se activaron las notificaciones de SUNARP para esta partida.' : 'Pendiente de afiliar en Alerta Registral.'}</p>
+      </div>
+    </li>`;
+  }
+  return `<li class="tl-item tl-${e.riesgo}">
+    <span class="tl-dot"></span>
+    <div class="tl-body">
+      <div class="tl-top"><strong>${esc(MOVIMIENTOS[e.mov] || e.mov)}</strong> ${badgeRiesgo(e.riesgo)}${tagOrigen(e)}<span class="tl-date">${fechaHora(e.ts)}</span></div>
+      <div class="tl-meta">${meta}</div>
+      ${e.detalle ? `<p>${esc(e.detalle)}</p>` : ''}
+      ${e.base ? '' : `<button class="link small btn-link-danger" data-accion="borrar-alerta" data-id="${esc(e.id)}">Eliminar</button>`}
+    </div>
+  </li>`;
+}
+
+function grupoPartidas({ tipo, titulo, sub, lista, clienteId, titularId }) {
   return `<div class="titular-box ${tipo}">
     <div class="titular-head">
       <span class="tag ${tipo === 'aval' ? 'aval' : 'empresa'}">${tipo === 'aval' ? 'Aval' : 'Cliente'}</span>
       <div class="titular-info">
         <strong>${esc(titulo)}</strong>
         <span class="muted block small">${esc(sub)}</span>
-        ${nota ? `<span class="muted block small">${esc(nota)}${otroCliente ? ` <a href="#" class="link" data-cliente="${esc(otroCliente)}">Ver ficha</a>` : ''}</span>` : ''}
       </div>
       <button class="btn btn-ghost btn-sm" data-accion="partida-titular" data-id="${esc(clienteId)}" data-titular="${esc(titularId)}">+ Partida</button>
     </div>
     ${
       lista.length
         ? `<ul class="plist">${lista
-            .map(
-              (p) => `<li>
+            .map((p) => {
+              const ult = alertasDePartida(p.id).sort((a, b) => b.ts - a.ts)[0];
+              return `<li>
                 ${bell(p.alertaRegistral)}
                 <div><strong class="mono">${esc(p.partida)}</strong>${p.ficha ? ` <span class="muted">(${esc(p.ficha)})</span>` : ''}
-                  <span class="muted block">${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · ${fecha(p.fechaRegistro)}</span></div>
+                  <span class="muted block small">${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · afiliada ${fecha(p.fechaRegistro)}</span></div>
+                ${ult ? badgeRiesgo(ult.riesgo) : '<span class="badge ok">Sin movimientos</span>'}
                 <button class="btn btn-ghost btn-sm" data-accion="alerta" data-id="${esc(p.id)}">+ Alerta</button>
-              </li>`
-            )
+              </li>`;
+            })
             .join('')}</ul>`
         : '<p class="muted small sin-partidas">Sin partidas en Alerta Registral.</p>'
     }
   </div>`;
-}
-
-function cerrarDrawer() {
-  $('drawer').classList.remove('open');
-  $('drawer').setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('drawer-open');
 }
 
 // ---------- Modales ----------
@@ -514,7 +631,6 @@ function opcionesPartidas(cid) {
         .join('')
     : `<option value="">${cid ? 'Este cliente no tiene partidas' : 'Selecciona un cliente primero'}</option>`;
 }
-
 function opcionesTitular(cid) {
   const c = cliente(cid);
   $('parTitular').innerHTML = c
@@ -523,11 +639,16 @@ function opcionesTitular(cid) {
     : '<option value="">Selecciona un cliente primero</option>';
 }
 $('parCliente').addEventListener('change', (e) => opcionesTitular(e.target.value));
+$('alCliente').addEventListener('change', (e) => opcionesPartidas(e.target.value));
+$('alMov').addEventListener('change', (e) => {
+  if (RIESGO_POR_MOV[e.target.value]) $('alRiesgo').value = RIESGO_POR_MOV[e.target.value];
+});
 
 function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
   const m = $(id);
   m.querySelector('form').reset();
   m.querySelectorAll('.form-msg').forEach((x) => (x.textContent = ''));
+  if (!cid && ui.vista === 'cliente') cid = ui.clienteId;
   if (id === 'modalPartida') {
     opcionesClientes($('parCliente'));
     if (cid) $('parCliente').value = cid;
@@ -544,10 +665,6 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
   }
   m.showModal();
 }
-$('alCliente').addEventListener('change', (e) => opcionesPartidas(e.target.value));
-$('alMov').addEventListener('change', (e) => {
-  if (RIESGO_POR_MOV[e.target.value]) $('alRiesgo').value = RIESGO_POR_MOV[e.target.value];
-});
 document.querySelectorAll('dialog').forEach((d) =>
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close();
@@ -557,32 +674,24 @@ document.querySelectorAll('dialog').forEach((d) =>
 // ---------- Clics ----------
 document.addEventListener('click', (e) => {
   const abrir = e.target.closest('[data-abrir]');
-  if (abrir) return abrirModal(abrir.dataset.abrir, { cliente: $('drawer').classList.contains('open') ? $('drawer').dataset.abierto : '' });
+  if (abrir) return abrirModal(abrir.dataset.abrir);
 
   const cerrar = e.target.closest('[data-cerrar]');
-  if (cerrar) {
-    const dlg = cerrar.closest('dialog');
-    return dlg ? dlg.close() : cerrarDrawer();
-  }
+  if (cerrar) return cerrar.closest('dialog').close();
 
   const acc = e.target.closest('[data-accion]');
   if (acc) {
     e.preventDefault();
+    e.stopPropagation();
     const id = acc.dataset.id;
     switch (acc.dataset.accion) {
       case 'partida': return abrirModal('modalPartida', { cliente: id });
       case 'partida-titular': return abrirModal('modalPartida', { cliente: id, titular: acc.dataset.titular });
       case 'alerta': return abrirModal('modalAlerta', { partida: id });
       case 'alerta-cliente': return abrirModal('modalAlerta', { cliente: id });
-      case 'simulacion': return cargarSimulacion();
       case 'borrar-alerta':
         if (!confirm('¿Eliminar esta alerta?')) return;
         extra.alertas = extra.alertas.filter((a) => a.id !== id);
-        break;
-      case 'borrar-partida':
-        if (!confirm('¿Quitar esta partida y sus alertas?')) return;
-        extra.alertas = extra.alertas.filter((a) => a.partidaId !== id);
-        extra.partidas = extra.partidas.filter((p) => p.id !== id);
         break;
       case 'borrar-cliente': {
         if (!confirm('¿Eliminar este cliente, sus partidas y alertas?')) return;
@@ -590,8 +699,9 @@ document.addEventListener('click', (e) => {
         extra.alertas = extra.alertas.filter((a) => !ids.includes(a.partidaId));
         extra.partidas = extra.partidas.filter((p) => p.clienteId !== id);
         extra.clientes = extra.clientes.filter((c) => c.id !== id);
-        cerrarDrawer();
-        break;
+        guardar();
+        location.hash = 'clientes';
+        return;
       }
       default: return;
     }
@@ -600,14 +710,13 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const fila = e.target.closest('[data-cliente]');
-  if (fila && fila.dataset.cliente) {
-    e.preventDefault();
-    abrirDrawer(fila.dataset.cliente);
-  }
+  // Filas clicables: llevan a la página del cliente
+  const fila = e.target.closest('[data-ir]');
+  if (fila && !e.target.closest('a, button, select, input')) location.hash = fila.dataset.ir;
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') cerrarDrawer();
+  const fila = e.target.closest && e.target.closest('[data-ir]');
+  if (fila && e.key === 'Enter') location.hash = fila.dataset.ir;
 });
 
 // ---------- Formularios ----------
@@ -624,11 +733,11 @@ $('formCliente').addEventListener('submit', (e) => {
     ruc,
     partidaPJ: $('cliPartida').value.trim(),
     fechaContrato: $('cliFecha').value,
+    avales: [],
   });
   guardar();
   $('modalCliente').close();
-  render();
-  abrirDrawer(id);
+  location.hash = `cliente/${id}`;
   toast('Cliente agregado');
 });
 
@@ -638,7 +747,6 @@ $('formPartida').addEventListener('submit', (e) => {
   const numero = $('parNumero').value.trim();
   if (!clienteId || !numero) return;
   if (partidasDe(clienteId).some((p) => p.partida === numero)) return ($('msgPartida').textContent = 'Esa partida ya está registrada para este cliente.');
-  const oficina = $('parOficina').value.trim();
   extra.partidas.push({
     id: uid(),
     clienteId,
@@ -646,7 +754,7 @@ $('formPartida').addEventListener('submit', (e) => {
     registro: $('parRegistro').value,
     partida: numero,
     ficha: $('parFicha').value.trim(),
-    oficina,
+    oficina: $('parOficina').value.trim(),
     zona: '',
     fechaRegistro: $('parFecha').value,
     alertaRegistral: $('parAlerta').checked,
@@ -676,41 +784,10 @@ $('formAlerta').addEventListener('submit', (e) => {
   toast('Alerta registrada');
 });
 
-// ---------- Simulación (empresa ficticia, marcada) ----------
-function cargarSimulacion() {
-  if (!extra.clientes.some((c) => c.demo)) {
-    const h = (n) => Date.now() - n * 3600 * 1000;
-    extra.clientes.push({
-      id: 'demo',
-      demo: true,
-      producto: 'factoring',
-      nombre: 'EMPRESA DEMO S.A.C. (FICTICIA)',
-      ruc: '20000000001',
-      ubicacion: 'Simulación',
-      fechaContrato: new Date().toISOString().slice(0, 10),
-      avales: [{ id: 'demo-a1', tipo: 'natural', nombre: 'AVAL DE EJEMPLO (FICTICIO)' }],
-    });
-    extra.partidas.push(
-      { id: 'demo-p1', clienteId: 'demo', titular: 'demo-a1', demo: true, registro: 'inmueble', partida: '00000001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true },
-      { id: 'demo-p2', clienteId: 'demo', titular: 'cliente', demo: true, registro: 'vehicular', partida: '00000002', ficha: 'XXX-001', oficina: 'Lima', zona: 'Zona Registral IX - Sede Lima', fechaRegistro: new Date().toISOString().slice(0, 10), estado: 'Activa', alertaRegistral: true }
-    );
-    extra.alertas.push(
-      { id: uid(), demo: true, partidaId: 'demo-p1', mov: 'venta', riesgo: 'alto', detalle: 'Presentación de compraventa a favor de un tercero.', ts: h(3) },
-      { id: uid(), demo: true, partidaId: 'demo-p2', mov: 'garantia', riesgo: 'medio', detalle: 'Solicitud de inscripción de garantía mobiliaria.', ts: h(30) },
-      { id: uid(), demo: true, partidaId: 'demo-p1', mov: 'anotacion', riesgo: 'bajo', detalle: 'Solicitud de publicidad registral.', ts: h(96) }
-    );
-    guardar();
-  }
-  location.hash = 'alertas';
-  render();
-  toast('Simulación cargada (empresa ficticia)');
-}
-$('btnSimulacion').addEventListener('click', cargarSimulacion);
 $('btnReiniciar').addEventListener('click', () => {
   if (!confirm('Se borrará lo agregado en este navegador (la cartera base se mantiene). ¿Continuar?')) return;
   extra = { clientes: [], partidas: [], alertas: [] };
   guardar();
-  cerrarDrawer();
   render();
   toast('Datos reiniciados');
 });

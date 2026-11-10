@@ -64,7 +64,6 @@
           <input type="search" id="busquedaGlobal" placeholder="Buscar cliente, RUC o partida…" aria-label="Buscar" />
         </div>
         <div class="topbar-actions">
-          <button class="btn btn-ghost" data-abrir="modalPartida">+ Partida</button>
           <button class="btn btn-primary" data-abrir="modalAlerta">+ Registrar alerta</button>
         </div>
       </header>
@@ -172,11 +171,7 @@
               <button data-valor="medio"><i class="dot medio"></i>Medio</button>
               <button data-valor="bajo"><i class="dot bajo"></i>Bajo</button>
             </div>
-            <div class="ml-auto btn-row">
-              <button class="btn btn-ghost" id="btnSimulacion">Cargar simulación</button>
-              <button class="btn btn-ghost btn-danger-text" id="btnReiniciar">Reiniciar</button>
-              <button class="btn btn-primary" data-abrir="modalAlerta">+ Registrar alerta</button>
-            </div>
+            <button class="btn btn-ghost btn-danger-text ml-auto" id="btnReiniciar" title="Borra lo agregado en este navegador">Reiniciar datos locales</button>
           </div>
           <div class="panel p0">
             <div class="table-wrap">
@@ -185,22 +180,12 @@
           </div>
         </section>
 
+        <!-- ===== VISTA: FICHA DEL CLIENTE (página completa) ===== -->
+        <section class="vista" id="vista-cliente" hidden></section>
+
       </main>
     </div>
   </div>
-
-  <!-- ===== PANEL DETALLE DE CLIENTE ===== -->
-  <aside class="drawer" id="drawer" aria-hidden="true">
-    <div class="drawer-head">
-      <div>
-        <span class="tag" id="dProducto"></span>
-        <h2 id="dNombre"></h2>
-        <span class="muted" id="dRuc"></span>
-      </div>
-      <button class="icon-btn" data-cerrar aria-label="Cerrar">✕</button>
-    </div>
-    <div class="drawer-body" id="drawerBody"></div>
-  </aside>
 
   <!-- ===== MODAL: CLIENTE ===== -->
   <dialog class="modal" id="modalCliente">
