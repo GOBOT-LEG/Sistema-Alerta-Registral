@@ -473,7 +473,6 @@ function renderCliente(id) {
   const docs = c.documentos || {};
   const nDocs = DOCUMENTOS.filter(([k]) => docs[k]).length;
   const avs = avalesDe(c);
-  const alto = als.find((a) => a.riesgo === 'alto');
   const ev = eventosCliente(id).filter((e) => ui.historialPartida === 'todas' || e.partidaId === ui.historialPartida);
 
   cont.innerHTML = `
@@ -495,19 +494,6 @@ function renderCliente(id) {
         <button class="btn btn-primary" data-accion="alerta-cliente" data-id="${esc(id)}" ${ps.length ? '' : 'disabled title="Primero agrega una partida"'}>+ Registrar alerta</button>
       </div>
     </div>
-
-    ${
-      alto
-        ? (() => {
-            const p = partida(alto.partidaId);
-            const t = titular(p);
-            return `<div class="banner alto">
-              <strong>Riesgo alto:</strong> ${esc(MOVIMIENTOS[alto.mov])} el ${fechaHora(alto.ts)} sobre la partida ${esc(p.partida)}
-              (${esc(REGISTROS[p.registro])}, ${esc(p.oficina || '')}) — titular ${t.tipo === 'aval' ? 'aval ' : ''}${esc(t.nombre)}.${tagOrigen(alto)}
-            </div>`;
-          })()
-        : ''
-    }
 
     <div class="kpis">
       <div class="kpi"><span class="kpi-label">Partidas vigiladas</span><strong>${ps.length}</strong><span class="kpi-sub">${ps.filter((p) => !esDelAval(p)).length} del cliente · ${ps.filter(esDelAval).length} de avales</span></div>
