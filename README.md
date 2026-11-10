@@ -1,82 +1,49 @@
-# 🛡️ Sistema Alerta Registral
+# 🛡️ Sistema Alerta Registral · Global Factoring
 
-Página web básica para un **sistema de monitoreo y alertas de movimientos registrales**
-(predios y vehículos). Proyecto colaborativo entre dos integrantes.
+Web del **área legal** para dar seguimiento a las partidas SUNARP de los clientes de
+factoring y confirming y de sus avales, vigiladas con **Alerta Registral**.
+
+👉 **Web:** https://gobot-leg.github.io/Sistema-Alerta-Registral/
 
 ---
 
-## 📁 Estructura del proyecto
+## Para usar la web (registrar y revisar datos)
+1. Entra al link y ingresa con tu correo y contraseña.
+   Los usuarios se crean en Supabase → **Authentication → Users → Add user**
+   (marcar *Auto Confirm User*). No hay registro público.
+2. Todo lo que registras (clientes, avales, partidas, alertas, títulos, expediente) se guarda en
+   la base de datos y lo ve todo el equipo al instante.
+3. Las alertas que llegan del correo de SUNARP entran como **PENDIENTE DE REVISIÓN**: en la ficha
+   del cliente confirma el **acto** y el **riesgo** (recuadro amarillo).
+4. Para el estado de un título usa **Síguelo ↗** y luego **Actualizar estado**.
 
+No hace falta Claude ni Git para usar la web.
+
+---
+
+## Para cambiar la web (diseño o funciones) con Claude
+1. Pídele a tu Claude: *"Descarga https://github.com/GOBOT-LEG/Sistema-Alerta-Registral en mis
+   Documentos y trabajemos ahí"*.
+2. Claude lee `CLAUDE.md`, que explica cómo está hecha la web y las reglas del proyecto.
+3. **Antes de empezar:** "trae los últimos cambios de GitHub".
+   **Al terminar:** "sube mis cambios a GitHub".
+4. Eviten editar el mismo archivo al mismo tiempo, y avísense qué cambió cada una.
+
+Los cambios publicados se ven en la web en 1–2 minutos.
+
+---
+
+## 📁 Estructura
 ```
-sistema-alerta-registral/
-├── index.html             → Página principal (estructura y contenido)
-├── styles.css             → Estilos (colores del logo de Global Factoring)
-├── script.js              → Lógica (panel, clientes, partidas, alertas, sesión)
-├── config.js              → Conexión a la base de datos (Supabase, llave pública)
-├── assets/logo-global.png → Logo de la empresa
-└── README.md              → Este archivo
+index.html             → Estructura de la página
+styles.css             → Estilos (colores del logo)
+script.js              → Lógica (sesión, base de datos, vistas, formularios, avisos SUNARP)
+config.js              → Conexión a Supabase (solo llave pública)
+assets/logo-global.png → Logo
+CLAUDE.md              → Guía técnica para Claude
 ```
 
-### Dónde están los datos
-Los clientes, avales, partidas y alertas están en una **base de datos Supabase**
-(proyecto "Alerta Registral GF"), no en GitHub. Todo se agrega y edita **desde la web**,
-y lo que registra una persona lo ve todo el equipo.
-
-- Para entrar se necesita un usuario. Los usuarios se crean en
-  Supabase → **Authentication → Users → Add user** (marcar *Auto Confirm User*).
-- El registro público está desactivado: nadie puede crearse una cuenta solo.
-- `config.js` solo tiene la llave **pública** (publishable). Nunca subir la
-  llave *service_role / secret*.
-
----
-
-## 👀 Cómo ver la página
-
-**Opción A — En tu computadora:**
-Abre `index.html` con doble clic y se abrirá en tu navegador.
-
-**Opción B — Online gratis con GitHub Pages (recomendado):**
-1. En el repositorio de GitHub: **Settings → Pages**.
-2. En *Build and deployment*: Source = **Deploy from a branch**.
-3. Branch = **main** y carpeta **/(root)** → botón **Save**.
-4. En 1–2 minutos la web estará publicada en:
-   `https://TU-USUARIO.github.io/sistema-alerta-registral/`
-
----
-
-## 🤝 Cómo trabajamos en equipo (GitHub)
-
-### Reglas de oro para no pisarnos
-1. **Antes de editar**, siempre revisa la última versión del archivo en GitHub.
-2. **Divide archivos**: mientras una edita `index.html`, la otra puede trabajar en
-   `css/styles.css` o `js/script.js`. Así nunca chocan sus cambios.
-3. **Sube tus cambios pronto** con mensajes claros, por ejemplo:
-   - `Agrego sección de contacto`
-   - `Cambio colores del menú`
-   - `Corrijo el formulario de alertas`
-
-### Flujo fácil (editar directo desde la web de GitHub)
-1. Entra a tu repositorio en `github.com`.
-2. Abre el archivo que quieres cambiar → botón **lápiz ✏️**.
-3. Edita el texto/código → **Commit changes** (guarda con un mensaje descriptivo).
-4. La otra integrante hace lo mismo sobre la versión actualizada.
-
-> 💡 Cuando el proyecto crezca, se recomienda usar **ramas + pull requests**,
-> pero para empezar este flujo simple es suficiente.
-
----
-
-## 👥 Invitar a tu compañera como colaboradora
-
-1. En el repositorio: **Settings → Collaborators → Add people**.
-2. Escribe su usuario o correo de GitHub → **Add**.
-3. Ella acepta la invitación desde su correo o desde **Notifications** en GitHub.
-4. Listo: ambas pueden ver y editar el proyecto.
-
----
-
-## ✏️ Qué personalizar primero
-
-- [ ] Nombres reales del equipo en la sección **Equipo** (`index.html`, sección `#equipo`).
-- [ ] Colores principales en `css/styles.css` (variables dentro de `:root`).
-- [ ] Textos de la portada y servicios según el enfoque final del proyecto.
+## 🔒 Datos y seguridad
+- Los datos están en **Supabase**, no en GitHub (este repositorio es público).
+- Solo usuarios con sesión pueden leer o escribir.
+- Nunca subir datos de clientes, contraseñas ni la llave `service_role`.
