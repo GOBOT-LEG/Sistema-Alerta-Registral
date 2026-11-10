@@ -1,18 +1,22 @@
 /* ===================================
-   GLOBAL FACTORING — Cartera de clientes (demo)
+   GLOBAL FACTORING — Cartera de clientes
    Fuente: Anexo A de cada Contrato Marco en
    "Global Factoring - Documentos\CONTRATOS FACTORING / CONTRATOS CONFIRMING".
 
    Solo datos de la EMPRESA cliente (razón social, RUC, partida de persona
    jurídica). No se incluyen DNI, teléfonos, correos ni domicilios de personas.
 
-   Para agregar un cliente: copia un bloque { ... } y cambia sus datos.
-   Para agregar sus bienes (partidas SUNARP), llena la lista "bienes":
-     { tipo: 'predio' | 'vehiculo' | 'maquinaria',
-       partida: 'Partida 12345678' o 'Placa ABC-123',
-       oficina: 'Lima',
-       desc: 'Local comercial en ...',
-       alertaRegistral: true   // true = ya está inscrita en Alerta Registral SUNARP
+   Para agregar una partida vigilada en Alerta Registral SUNARP, añade un
+   bloque dentro de "partidas" del cliente:
+     {
+       registro: 'inmueble' | 'mueble' | 'vehicular',
+       partida: '55257391',
+       ficha: 'P15294031',            // código/ficha o placa (opcional)
+       oficina: 'Piura',
+       zona: 'Zona Registral I - Sede Piura',
+       fechaRegistro: '2026-11-09',  // fecha de afiliación en Alerta Registral
+       estado: 'Activa',
+       alertaRegistral: true,
      }
 ==================================== */
 
@@ -25,11 +29,11 @@ const CARTERA = [
     ruc: '20605008756',
     partidaPJ: '11318030',
     oficina: 'Huaraz',
-    ubicacion: 'Independencia, Huaraz – Áncash',
+    ubicacion: 'Huaraz, Áncash',
     fechaContrato: '2026-09-15',
     avales: ['1 aval persona natural'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: true, reporteTrib: false },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'f02',
@@ -38,11 +42,11 @@ const CARTERA = [
     ruc: '20612120537',
     partidaPJ: '70766093',
     oficina: 'Callao',
-    ubicacion: 'Callao – Lima',
+    ubicacion: 'Callao',
     fechaContrato: '2026-09-16',
     avales: ['1 aval persona natural'],
     documentos: { contrato: true, firmado: true, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: false, reporteTrib: false },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'f03',
@@ -51,11 +55,11 @@ const CARTERA = [
     ruc: '20601882273',
     partidaPJ: '13814784',
     oficina: 'Lima',
-    ubicacion: 'Los Olivos – Lima',
+    ubicacion: 'Los Olivos, Lima',
     fechaContrato: '2026-09-22',
     avales: ['2 avales persona natural'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: true, reporteTrib: true },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'f04',
@@ -64,11 +68,11 @@ const CARTERA = [
     ruc: '20614317044',
     partidaPJ: '11190849',
     oficina: 'Chimbote',
-    ubicacion: 'Chimbote, Santa – Áncash',
+    ubicacion: 'Chimbote, Áncash',
     fechaContrato: '2026-09-30',
     avales: ['1 aval persona natural'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: false, copiaLiteral: true, reporteTrib: true },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'f05',
@@ -77,11 +81,45 @@ const CARTERA = [
     ruc: '20600854446',
     partidaPJ: '13520780',
     oficina: 'Lima',
-    ubicacion: 'San Isidro – Lima',
+    ubicacion: 'San Isidro, Lima',
     fechaContrato: '2026-10-01',
     avales: ['1 aval persona natural (separación de patrimonios)'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: true, reporteTrib: false },
-    bienes: [],
+    partidas: [],
+  },
+  {
+    id: 'f41',
+    producto: 'factoring',
+    nombre: 'MULTISERVICIOS Y REPRESENTACIONES GENERALES SHAIEL E.I.R.L.',
+    ruc: '20614108186',
+    partidaPJ: '11311360',
+    oficina: 'Piura',
+    ubicacion: 'Castilla, Piura',
+    fechaContrato: '2026-11-09',
+    avales: ['1 aval persona natural'],
+    documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: false, reporteTrib: false },
+    partidas: [
+      {
+        registro: 'inmueble',
+        partida: '55257391',
+        ficha: 'P15294031',
+        oficina: 'Piura',
+        zona: 'Zona Registral I - Sede Piura',
+        fechaRegistro: '2026-11-09',
+        estado: 'Activa',
+        alertaRegistral: true,
+      },
+      {
+        registro: 'mueble',
+        partida: '60579099',
+        ficha: 'NB48876',
+        oficina: 'Piura',
+        zona: 'Zona Registral I - Sede Piura',
+        fechaRegistro: '2026-11-09',
+        estado: 'Activa',
+        alertaRegistral: true,
+      },
+    ],
   },
 
   // ---------------- CONFIRMING ----------------
@@ -92,11 +130,11 @@ const CARTERA = [
     ruc: '20508195584',
     partidaPJ: '11622148',
     oficina: 'Lima',
-    ubicacion: 'San Isidro – Lima',
+    ubicacion: 'San Isidro, Lima',
     fechaContrato: '2026-09-24',
     avales: ['1 aval persona natural'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: true, reporteTrib: true },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'c02',
@@ -105,11 +143,11 @@ const CARTERA = [
     ruc: '20600025784',
     partidaPJ: '13354985',
     oficina: 'Lima',
-    ubicacion: 'Miraflores – Lima',
+    ubicacion: 'Miraflores, Lima',
     fechaContrato: '2026-10-12',
     avales: ['Aval: NUKLEO PERU S.A.C.'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: false, reporteTrib: false },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'c03',
@@ -118,11 +156,11 @@ const CARTERA = [
     ruc: '20565937481',
     partidaPJ: '13322550',
     oficina: 'Lima',
-    ubicacion: 'San Isidro – Lima',
+    ubicacion: 'San Isidro, Lima',
     fechaContrato: '2026-10-12',
     avales: ['Aval: P.A.Y. METAL TRADING S.A.C.'],
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: false, copiaLiteral: false, reporteTrib: false },
-    bienes: [],
+    partidas: [],
   },
   {
     id: 'c04',
@@ -131,7 +169,7 @@ const CARTERA = [
     ruc: '20612606481',
     partidaPJ: '',
     oficina: '',
-    ubicacion: 'San Isidro – Lima',
+    ubicacion: 'San Isidro, Lima',
     fechaContrato: '2026-10-23',
     avales: [
       'Aval: TECNOEDIL S.A. CONSTRUCTORA – SUCURSAL PERÚ',
@@ -139,6 +177,6 @@ const CARTERA = [
     ],
     nota: 'Consorcio sin partida propia: vigilar los bienes de las empresas consorciadas.',
     documentos: { contrato: true, firmado: false, pagare: true, fichaRuc: true, vigencia: true, copiaLiteral: true, reporteTrib: false },
-    bienes: [],
+    partidas: [],
   },
 ];

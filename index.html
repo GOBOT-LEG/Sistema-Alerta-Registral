@@ -3,349 +3,302 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLOBAL FACTORING — Sistema Alerta Registral</title>
-  <meta name="description" content="Seguimiento registral de la cartera de clientes de factoring y confirming de GLOBAL FACTORING S.A.: partidas de predios, vehículos y maquinaria vigiladas con Alerta Registral SUNARP." />
+  <title>Alerta Registral · Global Factoring</title>
   <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" type="image/png" href="assets/logo-global.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="app">
 
-  <!-- ===== ENCABEZADO ===== -->
-  <header class="header">
-    <div class="container header-inner">
-      <a href="#inicio" class="logo" aria-label="Global Factoring – inicio">
-        <img src="assets/logo-global.png" alt="Global Factoring" class="logo-img" />
-        <span class="logo-sub">Alerta<br />Registral</span>
-      </a>
-
-      <nav class="nav" id="nav">
-        <a href="#panel">Panel</a>
-        <a href="#cartera">Cartera</a>
-        <a href="#registro">Registro</a>
-        <a href="#alertas">Alertas</a>
-        <a href="#como-funciona">Cómo funciona</a>
+    <!-- ===== MENÚ LATERAL ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="assets/logo-global.png" alt="Global Factoring" />
+      </div>
+      <nav class="menu">
+        <a href="#resumen" data-vista="resumen" class="menu-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z"/></svg>
+          Resumen
+        </a>
+        <a href="#clientes" data-vista="clientes" class="menu-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V7l9-4 9 4v14h-6v-6H9v6H3Zm6-10h2V9H9v2Zm4 0h2V9h-2v2Z"/></svg>
+          Clientes
+          <span class="menu-count" id="menuClientes">0</span>
+        </a>
+        <a href="#partidas" data-vista="partidas" class="menu-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM9 12v2h8v-2H9Zm0 4v2h8v-2H9Z"/></svg>
+          Partidas
+          <span class="menu-count" id="menuPartidas">0</span>
+        </a>
+        <a href="#alertas" data-vista="alertas" class="menu-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3h-3v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg>
+          Alertas
+          <span class="menu-count alerta" id="menuAlertas">0</span>
+        </a>
       </nav>
-
-      <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
-    </div>
-  </header>
-
-  <!-- ===== PORTADA ===== -->
-  <section class="hero" id="inicio">
-    <div class="container hero-inner">
-      <span class="hero-badge">Seguimiento registral · Factoring y Confirming</span>
-      <h1>Si un cliente mueve sus bienes, <span class="highlight">lo sabremos primero</span></h1>
-      <p class="hero-sub">
-        Vigilamos en SUNARP las partidas de predios, vehículos y maquinaria de los clientes
-        con operaciones vigentes en GLOBAL FACTORING. Cada venta, embargo o hipoteca que se
-        inscriba genera una alerta clasificada por riesgo, para proteger el crédito a tiempo.
-      </p>
-      <div class="hero-actions">
-        <a href="#cartera" class="btn btn-primary">Ver cartera de clientes</a>
-        <a href="#como-funciona" class="btn btn-outline">¿Cómo funciona?</a>
+      <div class="sidebar-foot">
+        <a class="ext-link" href="https://www.sunarp.gob.pe/" target="_blank" rel="noopener">
+          Alerta Registral SUNARP ↗
+        </a>
+        <span>© <span id="year"></span> Global Factoring S.A.</span>
       </div>
+    </aside>
+    <div class="overlay" id="overlay"></div>
 
-      <div class="hero-stats">
-        <div class="stat"><strong id="heroClientes">0</strong><span>Clientes en seguimiento</span></div>
-        <div class="stat"><strong id="heroFactoring">0</strong><span>Factoring</span></div>
-        <div class="stat"><strong id="heroConfirming">0</strong><span>Confirming</span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== PANEL DE CONTROL ===== -->
-  <section class="section" id="panel">
-    <div class="container">
-      <h2 class="section-title">Panel de control</h2>
-      <p class="section-sub">Estado actual de la cartera vigilada, con semáforo de riesgo registral.</p>
-
-      <div class="panel-grid">
-        <div class="panel-card">
-          <span class="panel-label">Clientes</span>
-          <strong id="statClientes">0</strong>
-          <span class="panel-foot"><span id="statFactoring">0</span> factoring · <span id="statConfirming">0</span> confirming</span>
+    <!-- ===== CONTENIDO ===== -->
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Abrir menú">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6Zm0 5h18v2H3v-2Zm0 5h18v2H3v-2Z"/></svg>
+        </button>
+        <div class="topbar-title">
+          <h1 id="tituloVista">Resumen</h1>
+          <span class="breadcrumb">Sistema Alerta Registral</span>
         </div>
-        <div class="panel-card">
-          <span class="panel-label">Bienes monitoreados</span>
-          <strong id="statBienes">0</strong>
-          <span class="panel-foot"><span id="statInscritos">0</span> en Alerta Registral</span>
+        <div class="topbar-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></svg>
+          <input type="search" id="busquedaGlobal" placeholder="Buscar cliente, RUC o partida…" aria-label="Buscar" />
         </div>
-        <div class="panel-card">
-          <span class="panel-label">Clientes sin partidas</span>
-          <strong id="statPendientes">0</strong>
-          <span class="panel-foot">Pendiente consulta SUNARP</span>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" data-abrir="modalPartida">+ Partida</button>
+          <button class="btn btn-primary" data-abrir="modalAlerta">+ Registrar alerta</button>
         </div>
-        <div class="panel-card">
-          <span class="panel-label">Alertas totales</span>
-          <strong id="statAlertas">0</strong>
-          <span class="panel-foot">Movimientos registrados</span>
-        </div>
-        <div class="panel-card risk-alto">
-          <span class="panel-label">Riesgo alto</span>
-          <strong id="statAlto">0</strong>
-          <span class="panel-foot">Venta o transferencia</span>
-        </div>
-        <div class="panel-card risk-medio">
-          <span class="panel-label">Riesgo medio</span>
-          <strong id="statMedio">0</strong>
-          <span class="panel-foot">Embargo o nueva garantía</span>
-        </div>
-        <div class="panel-card risk-bajo">
-          <span class="panel-label">Riesgo bajo</span>
-          <strong id="statBajo">0</strong>
-          <span class="panel-foot">Anotaciones o cancelaciones</span>
-        </div>
-      </div>
-    </div>
-  </section>
+      </header>
 
-  <!-- ===== CARTERA DE CLIENTES ===== -->
-  <section class="section section-alt" id="cartera">
-    <div class="container">
-      <h2 class="section-title">Cartera de clientes</h2>
-      <p class="section-sub">
-        Clientes con contrato marco vigente. Cada ficha muestra sus datos registrales,
-        el estado de su expediente y los bienes que estamos vigilando.
-      </p>
+      <main class="content">
 
-      <div class="cartera-toolbar">
-        <div class="tabs" role="tablist" aria-label="Filtrar por producto">
-          <button type="button" class="tab active" data-filtro="todos" role="tab" aria-selected="true">Todos <span id="tabTodos" class="tab-count">0</span></button>
-          <button type="button" class="tab" data-filtro="factoring" role="tab" aria-selected="false">Factoring <span id="tabFactoring" class="tab-count">0</span></button>
-          <button type="button" class="tab" data-filtro="confirming" role="tab" aria-selected="false">Confirming <span id="tabConfirming" class="tab-count">0</span></button>
-        </div>
-        <input type="search" id="buscarCliente" class="search" placeholder="Buscar por nombre o RUC…" aria-label="Buscar cliente" />
-      </div>
-
-      <div class="cartera-grid" id="carteraGrid"></div>
-      <p class="alert-empty" id="carteraVacia" hidden>No hay clientes que coincidan con la búsqueda.</p>
-    </div>
-  </section>
-
-  <!-- ===== REGISTRO (3 PASOS) ===== -->
-  <section class="section" id="registro">
-    <div class="container">
-      <h2 class="section-title">Registro de la cartera vigilada</h2>
-      <p class="section-sub">
-        Sigue el orden: primero el cliente, después las partidas de sus bienes (de la consulta SUNARP)
-        y luego las alertas que lleguen.
-      </p>
-
-      <div class="grid grid-3">
-
-        <!-- Paso 1: Cliente -->
-        <div class="card paso">
-          <div class="paso-head">
-            <div class="step-num">1</div>
-            <h3>Cliente</h3>
+        <!-- ===== VISTA: RESUMEN ===== -->
+        <section class="vista" id="vista-resumen">
+          <div class="kpis">
+            <a class="kpi" href="#clientes">
+              <span class="kpi-label">Clientes</span>
+              <strong id="kpiClientes">0</strong>
+              <span class="kpi-sub"><span id="kpiFact">0</span> factoring · <span id="kpiConf">0</span> confirming</span>
+            </a>
+            <a class="kpi" href="#partidas">
+              <span class="kpi-label">Partidas vigiladas</span>
+              <strong id="kpiPartidas">0</strong>
+              <span class="kpi-sub"><span id="kpiActivas">0</span> activas en Alerta Registral</span>
+            </a>
+            <a class="kpi" href="#clientes" data-filtro-rapido="sinpartidas">
+              <span class="kpi-label">Sin partidas</span>
+              <strong id="kpiSinPartidas">0</strong>
+              <span class="kpi-sub">Clientes por consultar en SUNARP</span>
+            </a>
+            <a class="kpi kpi-alto" href="#alertas" data-riesgo-rapido="alto">
+              <span class="kpi-label">Alertas riesgo alto</span>
+              <strong id="kpiAlto">0</strong>
+              <span class="kpi-sub"><span id="kpiAlertas">0</span> alertas en total</span>
+            </a>
           </div>
-          <form id="formCliente" class="form">
-            <div class="field">
-              <label for="cliNombre">Razón social</label>
-              <input type="text" id="cliNombre" placeholder="Ej.: Comercial Andina S.A.C." required />
-            </div>
-            <div class="field">
-              <label for="cliDoc">RUC</label>
-              <input type="text" id="cliDoc" inputmode="numeric" pattern="\d{11}" maxlength="11" placeholder="11 dígitos" required />
-            </div>
-            <div class="field">
-              <label for="cliProducto">Producto</label>
-              <select id="cliProducto" required>
-                <option value="factoring">Factoring</option>
-                <option value="confirming">Confirming</option>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Registrar cliente</button>
-            <p class="form-msg" id="msgCliente"></p>
-          </form>
-        </div>
 
-        <!-- Paso 2: Bien -->
-        <div class="card paso">
-          <div class="paso-head">
-            <div class="step-num">2</div>
-            <h3>Bien del cliente</h3>
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Últimas alertas</h2>
+                <a href="#alertas" class="link">Ver todas</a>
+              </div>
+              <div id="resumenAlertas"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Cobertura de la cartera</h2>
+              </div>
+              <div class="cobertura" id="cobertura"></div>
+            </div>
           </div>
-          <form id="formBien" class="form">
-            <div class="field">
-              <label for="bienCliente">Cliente propietario</label>
-              <select id="bienCliente" required>
-                <option value="">Selecciona un cliente…</option>
-              </select>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Partidas afiliadas recientemente</h2>
+              <a href="#partidas" class="link">Ver todas</a>
             </div>
-            <div class="field">
-              <label for="bienTipo">Tipo de bien</label>
-              <select id="bienTipo" required>
-                <option value="">Selecciona una opción…</option>
-                <option value="predio">Predio (inmueble)</option>
-                <option value="vehiculo">Vehículo</option>
-                <option value="maquinaria">Maquinaria</option>
-              </select>
+            <div class="table-wrap">
+              <table class="table" id="tablaResumenPartidas"></table>
             </div>
-            <div class="field">
-              <label for="bienPartida">Partida / placa registral</label>
-              <input type="text" id="bienPartida" placeholder="Ej.: 11223344 o ABC-123" required />
+          </div>
+        </section>
+
+        <!-- ===== VISTA: CLIENTES ===== -->
+        <section class="vista" id="vista-clientes" hidden>
+          <div class="toolbar">
+            <div class="segmented" id="filtroProducto">
+              <button class="active" data-valor="todos">Todos <span id="cntTodos"></span></button>
+              <button data-valor="factoring">Factoring <span id="cntFact"></span></button>
+              <button data-valor="confirming">Confirming <span id="cntConf"></span></button>
             </div>
-            <div class="field">
-              <label for="bienDesc">Descripción (opcional)</label>
-              <input type="text" id="bienDesc" placeholder="Ej.: Local comercial en Miraflores" />
-            </div>
-            <label class="check">
-              <input type="checkbox" id="bienInscrito" />
-              Ya está inscrita en Alerta Registral SUNARP
+            <label class="toggle">
+              <input type="checkbox" id="soloSinPartidas" />
+              Solo sin partidas
             </label>
-            <button type="submit" class="btn btn-primary btn-block">Registrar bien</button>
-            <p class="form-msg" id="msgBien"></p>
-          </form>
-        </div>
-
-        <!-- Paso 3: Alerta -->
-        <div class="card paso">
-          <div class="paso-head">
-            <div class="step-num">3</div>
-            <h3>Alerta registral</h3>
+            <button class="btn btn-ghost ml-auto" data-abrir="modalCliente">+ Nuevo cliente</button>
           </div>
-          <form id="formAlerta" class="form">
-            <div class="field">
-              <label for="alertaCliente">Cliente</label>
-              <select id="alertaCliente" required>
-                <option value="">Selecciona un cliente…</option>
-              </select>
+          <div class="panel p0">
+            <div class="table-wrap">
+              <table class="table table-hover" id="tablaClientes"></table>
             </div>
-            <div class="field">
-              <label for="alertaBien">Bien vigilado</label>
-              <select id="alertaBien" required>
-                <option value="">Selecciona un bien…</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="alertaMov">Movimiento detectado</label>
-              <select id="alertaMov" required>
-                <option value="">Selecciona una opción…</option>
-                <option value="venta">Venta o transferencia de propiedad</option>
-                <option value="embargo">Embargo judicial</option>
-                <option value="garantia">Hipoteca o constitución de garantía</option>
-                <option value="anotacion">Anotación o aviso informativo</option>
-                <option value="cancelacion">Cancelación de carga o gravamen</option>
-                <option value="otro">Otro movimiento</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="alertaRiesgo">Nivel de riesgo</label>
-              <select id="alertaRiesgo" required>
-                <option value="">Selecciona una opción…</option>
-                <option value="alto">Riesgo alto</option>
-                <option value="medio">Riesgo medio</option>
-                <option value="bajo">Riesgo bajo</option>
-              </select>
-              <span class="hint" id="riesgoHint">Se sugiere automáticamente según el movimiento.</span>
-            </div>
-            <div class="field">
-              <label for="alertaDetalle">Detalle (opcional)</label>
-              <textarea id="alertaDetalle" rows="2" placeholder="Ej.: se inscribió transferencia a favor de un tercero…"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Registrar alerta</button>
-            <p class="form-msg" id="msgAlerta"></p>
-          </form>
-        </div>
+          </div>
+        </section>
 
+        <!-- ===== VISTA: PARTIDAS ===== -->
+        <section class="vista" id="vista-partidas" hidden>
+          <div class="toolbar">
+            <div class="segmented" id="filtroRegistro">
+              <button class="active" data-valor="todos">Todas</button>
+              <button data-valor="inmueble">Propiedad inmueble</button>
+              <button data-valor="mueble">Bienes muebles</button>
+              <button data-valor="vehicular">Vehicular</button>
+            </div>
+            <button class="btn btn-ghost ml-auto" data-abrir="modalPartida">+ Agregar partida</button>
+          </div>
+          <div class="panel p0">
+            <div class="table-wrap">
+              <table class="table" id="tablaPartidas"></table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== VISTA: ALERTAS ===== -->
+        <section class="vista" id="vista-alertas" hidden>
+          <div class="toolbar">
+            <div class="segmented" id="filtroRiesgo">
+              <button class="active" data-valor="todos">Todas</button>
+              <button data-valor="alto"><i class="dot alto"></i>Alto</button>
+              <button data-valor="medio"><i class="dot medio"></i>Medio</button>
+              <button data-valor="bajo"><i class="dot bajo"></i>Bajo</button>
+            </div>
+            <div class="ml-auto btn-row">
+              <button class="btn btn-ghost" id="btnSimulacion">Cargar simulación</button>
+              <button class="btn btn-ghost btn-danger-text" id="btnReiniciar">Reiniciar</button>
+              <button class="btn btn-primary" data-abrir="modalAlerta">+ Registrar alerta</button>
+            </div>
+          </div>
+          <div class="panel p0">
+            <div class="table-wrap">
+              <table class="table" id="tablaAlertas"></table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== PANEL DETALLE DE CLIENTE ===== -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <span class="tag" id="dProducto"></span>
+        <h2 id="dNombre"></h2>
+        <span class="muted" id="dRuc"></span>
       </div>
+      <button class="icon-btn" data-cerrar aria-label="Cerrar">✕</button>
     </div>
-  </section>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
 
-  <!-- ===== ALERTAS ACTIVAS ===== -->
-  <section class="section section-alt" id="alertas">
-    <div class="container">
-      <h2 class="section-title">Alertas registrales</h2>
-      <p class="section-sub">
-        Movimientos detectados en las partidas vigiladas, del más reciente al más antiguo.
-      </p>
-
-      <div class="toolbar">
-        <button type="button" class="btn btn-neutral btn-sm" id="btnSimulacion">Ver simulación de alertas</button>
-        <button type="button" class="btn btn-danger btn-sm" id="btnReiniciar">Reiniciar demo</button>
+  <!-- ===== MODAL: CLIENTE ===== -->
+  <dialog class="modal" id="modalCliente">
+    <form id="formCliente" method="dialog">
+      <div class="modal-head"><h3>Nuevo cliente</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
+      <div class="modal-body">
+        <label class="field">Razón social<input id="cliNombre" required /></label>
+        <div class="row-2">
+          <label class="field">RUC<input id="cliRuc" inputmode="numeric" pattern="\d{11}" maxlength="11" required /></label>
+          <label class="field">Producto
+            <select id="cliProducto"><option value="factoring">Factoring</option><option value="confirming">Confirming</option></select>
+          </label>
+        </div>
+        <div class="row-2">
+          <label class="field">Partida PJ<input id="cliPartida" /></label>
+          <label class="field">Fecha de contrato<input type="date" id="cliFecha" /></label>
+        </div>
+        <p class="form-msg" id="msgCliente"></p>
       </div>
-
-      <p class="alert-empty" id="alertaVacia">
-        Aún no hay alertas. Cuando SUNARP avise de un movimiento en una partida vigilada,
-        regístralo en el paso 3. Para ver cómo se vería, pulsa <strong>Ver simulación de alertas</strong>.
-      </p>
-      <ul class="alert-list" id="listaAlertas"></ul>
-    </div>
-  </section>
-
-  <!-- ===== CÓMO FUNCIONA ===== -->
-  <section class="section" id="como-funciona">
-    <div class="container">
-      <h2 class="section-title">¿Cómo funciona?</h2>
-      <p class="section-sub">El flujo del equipo de riesgos y cobranza de GLOBAL FACTORING.</p>
-
-      <div class="grid grid-4">
-        <div class="step">
-          <div class="step-num">1</div>
-          <h3>Contrato marco</h3>
-          <p>El cliente firma su contrato de factoring o confirming con pagaré y avales. Entra a la cartera.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <h3>Consulta SUNARP</h3>
-          <p>Se buscan en SUNARP los predios y vehículos del cliente y de sus avales, y se guardan en su carpeta.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <h3>Alerta Registral</h3>
-          <p>Cada partida se inscribe en el servicio Alerta Registral de SUNARP, que avisa por correo de cualquier inscripción.</p>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <h3>Clasifica y actúa</h3>
-          <p>El aviso se registra aquí con su nivel de riesgo y cobranza actúa antes de que el bien salga del patrimonio.</p>
-        </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar cliente</button>
       </div>
-    </div>
-  </section>
+    </form>
+  </dialog>
 
-  <!-- ===== QUIÉNES SOMOS ===== -->
-  <section class="section section-alt" id="nosotros">
-    <div class="container">
-      <h2 class="section-title">GLOBAL FACTORING S.A.</h2>
-      <p class="section-sub">Soluciones de liquidez y control de riesgo para empresas.</p>
-
-      <div class="grid grid-3">
-        <article class="card">
-          <span class="card-tag factoring">Factoring</span>
-          <h3>Liquidez inmediata</h3>
-          <p>Convertimos las facturas y créditos comerciales de tu empresa en liquidez inmediata, gestionando el cobro de manera profesional.</p>
-        </article>
-        <article class="card">
-          <span class="card-tag confirming">Confirming</span>
-          <h3>Pago a proveedores</h3>
-          <p>Organizamos y aseguramos los pagos a tus proveedores, optimizando el flujo de caja y las relaciones comerciales de tu negocio.</p>
-        </article>
-        <article class="card">
-          <span class="card-tag riesgo">Riesgo</span>
-          <h3>Control registral</h3>
-          <p>Este sistema nace de una necesidad real: evitar que los bienes de nuestros clientes se vendan o graven antes del cobro.</p>
-        </article>
+  <!-- ===== MODAL: PARTIDA ===== -->
+  <dialog class="modal" id="modalPartida">
+    <form id="formPartida" method="dialog">
+      <div class="modal-head"><h3>Agregar partida</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
+      <div class="modal-body">
+        <label class="field">Cliente<select id="parCliente" required></select></label>
+        <div class="row-2">
+          <label class="field">Registro jurídico
+            <select id="parRegistro" required>
+              <option value="inmueble">Propiedad inmueble</option>
+              <option value="mueble">Bienes muebles</option>
+              <option value="vehicular">Propiedad vehicular</option>
+            </select>
+          </label>
+          <label class="field">Oficina registral<input id="parOficina" placeholder="Ej.: Piura" required /></label>
+        </div>
+        <div class="row-2">
+          <label class="field">N.° de partida<input id="parNumero" required /></label>
+          <label class="field">Ficha / placa (opcional)<input id="parFicha" /></label>
+        </div>
+        <div class="row-2">
+          <label class="field">Fecha de afiliación<input type="date" id="parFecha" /></label>
+          <label class="field check-field"><input type="checkbox" id="parAlerta" checked /> Afiliada en Alerta Registral</label>
+        </div>
+        <p class="form-msg" id="msgPartida"></p>
       </div>
-    </div>
-  </section>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar partida</button>
+      </div>
+    </form>
+  </dialog>
 
-  <!-- ===== PIE DE PÁGINA ===== -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <img src="assets/logo-global.png" alt="Global Factoring" class="footer-logo" />
-      <p>Factoring · Confirming · Control de riesgo crediticio</p>
-      <p class="footer-note">
-        Herramienta de uso interno. Los bienes y alertas que registres se guardan solo en este navegador.
-      </p>
-      <p class="copy">© <span id="year"></span> GLOBAL FACTORING S.A. · Sistema Alerta Registral</p>
-    </div>
-  </footer>
+  <!-- ===== MODAL: ALERTA ===== -->
+  <dialog class="modal" id="modalAlerta">
+    <form id="formAlerta" method="dialog">
+      <div class="modal-head"><h3>Registrar alerta</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
+      <div class="modal-body">
+        <label class="field">Cliente<select id="alCliente" required></select></label>
+        <label class="field">Partida<select id="alPartida" required></select></label>
+        <div class="row-2">
+          <label class="field">Movimiento
+            <select id="alMov" required>
+              <option value="">Selecciona…</option>
+              <option value="venta">Venta o transferencia</option>
+              <option value="embargo">Embargo</option>
+              <option value="garantia">Hipoteca / garantía</option>
+              <option value="anotacion">Anotación / aviso</option>
+              <option value="cancelacion">Cancelación de carga</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+          <label class="field">Riesgo
+            <select id="alRiesgo" required>
+              <option value="">Selecciona…</option>
+              <option value="alto">Alto</option>
+              <option value="medio">Medio</option>
+              <option value="bajo">Bajo</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">Detalle<textarea id="alDetalle" rows="3" placeholder="Texto del aviso de SUNARP…"></textarea></label>
+        <p class="form-msg" id="msgAlerta"></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Registrar alerta</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
 
   <script src="clientes.js"></script>
   <script src="script.js"></script>

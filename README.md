@@ -18,8 +18,9 @@ sistema-alerta-registral/
 ```
 
 ### Cómo agregar clientes o partidas SUNARP
-Abre `clientes.js`. Cada cliente es un bloque `{ ... }`. Para registrar sus bienes,
-llena la lista `bienes` del cliente (las instrucciones están al inicio del archivo).
+Abre `clientes.js`. Cada cliente es un bloque `{ ... }`. Para registrar las partidas
+afiliadas en Alerta Registral, llena la lista `partidas` del cliente (las
+instrucciones están al inicio del archivo).
 Los bienes y alertas que se agregan desde la página se guardan solo en ese navegador;
 lo que va en `clientes.js` lo ve todo el equipo.
 
