@@ -62,6 +62,23 @@ function cargar() {
     const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (d) extra = { clientes: d.clientes || [], partidas: d.partidas || [], alertas: d.alertas || [] };
   } catch { /* empezar vacío */ }
+  quitarDuplicados();
+}
+
+// Una alerta es duplicada si ya existe otra con la misma partida, movimiento y día
+const diaDe = (ts) => new Date(ts).toDateString();
+function esDuplicada(nueva, lista) {
+  return lista.some((a) => a !== nueva && a.partidaId === nueva.partidaId && a.mov === nueva.mov && diaDe(a.ts) === diaDe(nueva.ts));
+}
+function quitarDuplicados() {
+  const antes = extra.alertas.length;
+  const delSistema = alertas().filter((a) => a.base);
+  const unicas = [];
+  extra.alertas.forEach((a) => {
+    if (!esDuplicada(a, delSistema) && !esDuplicada(a, unicas)) unicas.push(a);
+  });
+  extra.alertas = unicas;
+  if (unicas.length !== antes) guardar();
 }
 
 // ---------- Datos ----------
@@ -770,14 +787,18 @@ $('formAlerta').addEventListener('submit', (e) => {
   e.preventDefault();
   const partidaId = $('alPartida').value;
   if (!partidaId || !$('alMov').value || !$('alRiesgo').value) return ($('msgAlerta').textContent = 'Completa cliente, partida, movimiento y riesgo.');
-  extra.alertas.push({
+  const nueva = {
     id: uid(),
     partidaId,
     mov: $('alMov').value,
     riesgo: $('alRiesgo').value,
     detalle: $('alDetalle').value.trim(),
     ts: Date.now(),
-  });
+  };
+  if (esDuplicada(nueva, alertas())) {
+    return ($('msgAlerta').textContent = 'Esta alerta ya está registrada hoy para esa partida. Revisa el historial del cliente.');
+  }
+  extra.alertas.push(nueva);
   guardar();
   $('modalAlerta').close();
   render();
