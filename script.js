@@ -1,11 +1,10 @@
 /* ===================================
    GLOBAL FACTORING — Sistema Alerta Registral
-   - Cartera base: clientes.js (CARTERA), compartida por el equipo.
-   - Lo que se agrega desde la página se guarda en este navegador.
+   Todos los datos viven en Supabase (base de datos compartida).
+   Lo que cualquiera registra en la web lo ve todo el equipo.
 ==================================== */
 
 const $ = (id) => document.getElementById(id);
-const STORAGE_KEY = 'gf_alerta_registral_v3';
 
 const REGISTROS = {
   inmueble: 'Registro de Propiedad Inmueble',
@@ -39,8 +38,13 @@ const TITULOS = {
   cliente: 'Ficha del cliente',
 };
 
+// ---------- Conexión ----------
+const configurado = typeof SUPABASE_URL === 'string' && SUPABASE_URL && SUPABASE_KEY;
+const sb = configurado && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
 // ---------- Estado ----------
-let extra = { clientes: [], partidas: [], alertas: [] };
+let db = { clientes: [], avales: [], partidas: [], alertas: [] };
+let usuario = null;
 const ui = {
   vista: 'resumen',
   clienteId: '',
@@ -52,77 +56,98 @@ const ui = {
   riesgo: 'todos',
 };
 
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
-function guardar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(extra)); } catch { /* sin almacenamiento */ }
+async function cargarDatos() {
+  const [c, a, p, al] = await Promise.all([
+    sb.from('clientes').select('*').order('producto').order('creado_en'),
+    sb.from('avales').select('*').order('creado_en'),
+    sb.from('partidas').select('*').order('creado_en'),
+    sb.from('alertas').select('*').order('fecha', { ascending: false }),
+  ]);
+  const err = c.error || a.error || p.error || al.error;
+  if (err) throw err;
+  db = {
+    clientes: c.data.map((x) => ({
+      id: x.id,
+      producto: x.producto,
+      nombre: x.nombre,
+      ruc: x.ruc,
+      partidaPJ: x.partida_pj,
+      oficina: x.oficina,
+      ubicacion: x.ubicacion,
+      fechaContrato: x.fecha_contrato,
+      nota: x.nota,
+      documentos: x.documentos || {},
+    })),
+    avales: a.data.map((x) => ({
+      id: x.id,
+      clienteId: x.cliente_id,
+      tipo: x.tipo,
+      nombre: x.nombre,
+      ruc: x.ruc,
+      partidaPJ: x.partida_pj,
+      nota: x.nota,
+      clienteRelacionado: x.cliente_relacionado,
+    })),
+    partidas: p.data.map((x) => ({
+      id: x.id,
+      clienteId: x.cliente_id,
+      titular: x.aval_id || 'cliente',
+      registro: x.registro,
+      partida: x.partida,
+      ficha: x.ficha,
+      oficina: x.oficina,
+      zona: x.zona,
+      fechaRegistro: x.fecha_registro,
+      estado: x.estado,
+      alertaRegistral: x.alerta_registral,
+    })),
+    alertas: al.data.map((x) => ({
+      id: x.id,
+      partidaId: x.partida_id,
+      mov: x.mov,
+      riesgo: x.riesgo,
+      detalle: x.detalle,
+      ts: new Date(x.fecha).getTime(),
+      prueba: x.prueba,
+      creadoPor: x.creado_por,
+    })),
+  };
 }
-function cargar() {
+
+async function refrescar() {
   try {
-    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (d) extra = { clientes: d.clientes || [], partidas: d.partidas || [], alertas: d.alertas || [] };
-  } catch { /* empezar vacío */ }
-  quitarDuplicados();
+    await cargarDatos();
+    render();
+  } catch (e) {
+    toast('No se pudieron cargar los datos: ' + mensajeError(e));
+  }
 }
 
-// Una alerta es duplicada si ya existe otra con la misma partida, movimiento y día
-const diaDe = (ts) => new Date(ts).toDateString();
-function esDuplicada(nueva, lista) {
-  return lista.some((a) => a !== nueva && a.partidaId === nueva.partidaId && a.mov === nueva.mov && diaDe(a.ts) === diaDe(nueva.ts));
-}
-function quitarDuplicados() {
-  const antes = extra.alertas.length;
-  const delSistema = alertas().filter((a) => a.base);
-  const unicas = [];
-  extra.alertas.forEach((a) => {
-    if (!esDuplicada(a, delSistema) && !esDuplicada(a, unicas)) unicas.push(a);
-  });
-  extra.alertas = unicas;
-  if (unicas.length !== antes) guardar();
+function mensajeError(e) {
+  if (!e) return 'error desconocido';
+  if (e.code === '23505') return 'ese registro ya existe.';
+  if (e.code === '42501' || e.status === 401) return 'tu sesión expiró, vuelve a ingresar.';
+  return e.message || String(e);
 }
 
 // ---------- Datos ----------
-const base = () => (typeof CARTERA !== 'undefined' ? CARTERA : []);
-function clientes() {
-  return [...base().map((c) => ({ ...c, base: true })), ...extra.clientes];
-}
-function partidas() {
-  const lista = [];
-  base().forEach((c) => (c.partidas || []).forEach((p, i) => lista.push({ ...p, id: `${c.id}-p${i}`, clienteId: c.id, base: true })));
-  return [...lista, ...extra.partidas];
-}
-function tsDe(fechaIso, hora) {
-  const [y, m, d] = String(fechaIso).split('-').map(Number);
-  const [hh, mm] = String(hora || '00:00').split(':').map(Number);
-  return new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
-}
-// Alertas: las de clientes.js (movimientos de cada partida) + las registradas en este navegador
-function alertas() {
-  const lista = [];
-  partidas()
-    .filter((p) => p.base)
-    .forEach((p) =>
-      (p.movimientos || []).forEach((m, i) =>
-        lista.push({ ...m, id: `${p.id}-m${i}`, partidaId: p.id, ts: tsDe(m.fecha, m.hora), base: true })
-      )
-    );
-  return [...lista, ...extra.alertas];
-}
-
+const clientes = () => db.clientes.map((c) => ({ ...c, avales: db.avales.filter((a) => a.clienteId === c.id) }));
+const partidas = () => db.partidas;
+const alertas = () => db.alertas;
 const cliente = (id) => clientes().find((c) => c.id === id);
-const partida = (id) => partidas().find((p) => p.id === id);
-const partidasDe = (cid) => partidas().filter((p) => p.clienteId === cid);
-const avalesDe = (c) => (c && Array.isArray(c.avales) ? c.avales.filter((a) => a && typeof a === 'object') : []);
+const partida = (id) => db.partidas.find((p) => p.id === id);
+const partidasDe = (cid) => db.partidas.filter((p) => p.clienteId === cid);
+const avalesDe = (c) => (c ? db.avales.filter((a) => a.clienteId === c.id) : []);
 const esDelAval = (p) => p.titular && p.titular !== 'cliente';
-const alertasDePartida = (pid) => alertas().filter((a) => a.partidaId === pid);
+const alertasDePartida = (pid) => db.alertas.filter((a) => a.partidaId === pid);
 const alertasDe = (cid) => {
   const ids = partidasDe(cid).map((p) => p.id);
-  return alertas().filter((a) => ids.includes(a.partidaId));
+  return db.alertas.filter((a) => ids.includes(a.partidaId));
 };
 function titular(p) {
   const c = cliente(p.clienteId);
   if (!esDelAval(p)) return { tipo: 'cliente', nombre: c ? c.nombre : '—' };
-  const a = avalesDe(c).find((x) => x.id === p.titular);
+  const a = db.avales.find((x) => x.id === p.titular);
   return { tipo: 'aval', nombre: a ? a.nombre : 'Aval', aval: a };
 }
 
@@ -134,12 +159,20 @@ function esc(t) {
 }
 function fecha(iso) {
   if (!iso) return '—';
-  const [y, m, d] = iso.split('-').map(Number);
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
   return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
 }
 function fechaHora(ts) {
   return new Date(ts).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+function tsDe(fechaIso) {
+  const [y, m, d] = String(fechaIso).slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+const hoyIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const riesgoMax = (lista) => ['alto', 'medio', 'bajo'].find((r) => lista.some((a) => a.riesgo === r)) || '';
 function coincide(...campos) {
   const q = ui.busqueda.trim().toLowerCase();
@@ -150,11 +183,11 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('show'), 2600);
+  t._t = setTimeout(() => t.classList.remove('show'), 3200);
 }
 const tagProducto = (p) => `<span class="tag ${p}">${p === 'confirming' ? 'Confirming' : 'Factoring'}</span>`;
 const badgeRiesgo = (r) => `<span class="badge ${r}"><i class="dot ${r}"></i>${RIESGO_TXT[r]}</span>`;
-const tagOrigen = (a) => (a.prueba ? ' <span class="tag prueba">Prueba</span>' : a.demo ? ' <span class="tag demo">Simulación</span>' : '');
+const tagOrigen = (a) => (a.prueba ? ' <span class="tag prueba">Prueba</span>' : '');
 const bell = (on) =>
   `<span class="bell ${on ? 'on' : ''}" title="${on ? 'Notificaciones activas en Alerta Registral' : 'Sin afiliar a Alerta Registral'}"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3h-3v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span>`;
 function titularHtml(p) {
@@ -169,7 +202,7 @@ function estadoCliente(c) {
   return '<span class="badge pend">Sin partidas</span>';
 }
 const vacio = (texto, boton = '') => `<div class="empty"><p>${texto}</p>${boton}</div>`;
-const linkCliente = (c) => (c ? `<a href="#cliente/${esc(c.id)}" class="link">${esc(c.nombre)}</a>` : '—');
+const quien = (email) => (email ? ` · registrado por ${esc(String(email).split('@')[0])}` : '');
 
 // ---------- Navegación ----------
 function irA(hash) {
@@ -178,7 +211,7 @@ function irA(hash) {
     const id = decodeURIComponent(vista.slice(8));
     if (ui.vista !== 'cliente' || ui.clienteId !== id) ui.historialPartida = 'todas';
     ui.clienteId = id;
-    vista = cliente(id) ? 'cliente' : 'clientes';
+    vista = 'cliente';
   }
   if (!TITULOS[vista]) vista = 'resumen';
   ui.vista = vista;
@@ -233,6 +266,7 @@ document.querySelectorAll('[data-riesgo-rapido]').forEach((a) =>
 
 // ---------- Render general ----------
 function render() {
+  if (!usuario) return;
   const cs = clientes();
   const ps = partidas();
   const als = alertas();
@@ -257,7 +291,7 @@ function renderResumen(cs, ps, als) {
   $('kpiClientes').textContent = cs.length;
   $('kpiFact').textContent = fact.length;
   $('kpiConf').textContent = conf.length;
-  $('kpiAvales').textContent = cs.reduce((n, c) => n + avalesDe(c).length, 0);
+  $('kpiAvales').textContent = db.avales.length;
   $('kpiPartidas').textContent = ps.length;
   $('kpiActivas').textContent = ps.filter((p) => p.alertaRegistral).length;
   $('kpiDeAvales').textContent = ps.filter(esDelAval).length;
@@ -334,14 +368,14 @@ function renderClientes(cs) {
               return `<tr data-ir="cliente/${esc(c.id)}" tabindex="0">
                 <td><strong class="nombre">${esc(c.nombre)}</strong><span class="muted block">${esc(c.ubicacion || '')}</span></td>
                 <td class="mono">${esc(c.ruc)}</td>
-                <td>${tagProducto(c.producto)}${c.demo ? ' <span class="tag demo">Simulación</span>' : ''}</td>
+                <td>${tagProducto(c.producto)}</td>
                 <td class="avales-cell">${
                   avs.length
                     ? avs.map((a) => `<span class="aval-line"><i class="aval-ico ${a.tipo === 'juridica' ? 'pj' : 'pn'}" title="${a.tipo === 'juridica' ? 'Persona jurídica' : 'Persona natural'}"></i>${esc(a.nombre)}</span>`).join('')
                     : '<span class="muted">—</span>'
                 }</td>
                 <td>${fecha(c.fechaContrato)}</td>
-                <td class="nowrap">${c.documentos ? `<span class="progress"><span style="width:${(n / DOCUMENTOS.length) * 100}%"></span></span> <span class="muted">${n}/${DOCUMENTOS.length}</span>` : '<span class="muted">—</span>'}</td>
+                <td class="nowrap"><span class="progress"><span style="width:${(n / DOCUMENTOS.length) * 100}%"></span></span> <span class="muted">${n}/${DOCUMENTOS.length}</span></td>
                 <td class="c"><strong>${ps.length}</strong>${npAval ? `<span class="muted block small nowrap">${npAval} de aval</span>` : ''}</td>
                 <td>${estadoCliente(c)}</td>
                 <td class="r chevron">›</td>
@@ -397,7 +431,7 @@ function renderAlertas(als) {
     });
 
   $('tablaAlertas').innerHTML = lista.length
-    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente Global</th><th>Titular del bien</th><th>Partida</th><th>Movimiento</th><th>Detalle</th><th></th></tr></thead>
+    ? `<thead><tr><th>Fecha</th><th>Riesgo</th><th>Cliente Global</th><th>Titular del bien</th><th>Partida</th><th>Movimiento</th><th>Detalle</th></tr></thead>
       <tbody>${lista
         .map((a) => {
           const p = partida(a.partidaId);
@@ -410,7 +444,6 @@ function renderAlertas(als) {
             <td class="mono nowrap"><strong>${esc(p ? p.partida : '—')}</strong><span class="muted block small">${esc(p ? REGISTROS[p.registro] : '')}</span></td>
             <td><strong>${esc(MOVIMIENTOS[a.mov] || a.mov)}</strong></td>
             <td class="muted wrap">${esc(a.detalle || '—')}</td>
-            <td class="r">${a.base ? '' : `<button class="icon-btn sm" data-accion="borrar-alerta" data-id="${esc(a.id)}" aria-label="Eliminar alerta">✕</button>`}</td>
           </tr>`;
         })
         .join('')}</tbody>`
@@ -421,12 +454,10 @@ function renderAlertas(als) {
 function eventosCliente(cid) {
   const ev = [];
   partidasDe(cid).forEach((p) => {
-    if (p.fechaRegistro) {
-      ev.push({ tipo: 'afiliacion', partidaId: p.id, ts: tsDe(p.fechaRegistro), activo: p.alertaRegistral });
-    }
+    if (p.fechaRegistro) ev.push({ tipo: 'afiliacion', partidaId: p.id, ts: tsDe(p.fechaRegistro), activo: p.alertaRegistral });
   });
   alertasDe(cid).forEach((a) => ev.push({ tipo: 'alerta', ...a }));
-  return ev.sort((a, b) => b.ts - a.ts);
+  return ev.sort((a, b) => b.ts - a.ts || (a.tipo === 'alerta' ? -1 : 1));
 }
 
 function renderCliente(id) {
@@ -443,7 +474,6 @@ function renderCliente(id) {
   const nDocs = DOCUMENTOS.filter(([k]) => docs[k]).length;
   const avs = avalesDe(c);
   const alto = als.find((a) => a.riesgo === 'alto');
-
   const ev = eventosCliente(id).filter((e) => ui.historialPartida === 'todas' || e.partidaId === ui.historialPartida);
 
   cont.innerHTML = `
@@ -451,7 +481,7 @@ function renderCliente(id) {
 
     <div class="panel cliente-hero ${riesgo ? 'hero-' + riesgo : ''}">
       <div class="hero-main">
-        <div class="hero-tags">${tagProducto(c.producto)} ${estadoCliente(c)}${c.demo ? ' <span class="tag demo">Simulación</span>' : ''}</div>
+        <div class="hero-tags">${tagProducto(c.producto)} ${estadoCliente(c)}</div>
         <h2>${esc(c.nombre)}</h2>
         <div class="hero-meta">
           <span><b>RUC</b> ${esc(c.ruc)}</span>
@@ -463,7 +493,6 @@ function renderCliente(id) {
       <div class="hero-actions">
         <button class="btn btn-ghost" data-accion="partida" data-id="${esc(id)}">+ Partida</button>
         <button class="btn btn-primary" data-accion="alerta-cliente" data-id="${esc(id)}" ${ps.length ? '' : 'disabled title="Primero agrega una partida"'}>+ Registrar alerta</button>
-        ${c.base ? '' : `<button class="btn btn-ghost btn-danger-text" data-accion="borrar-cliente" data-id="${esc(id)}">Eliminar</button>`}
       </div>
     </div>
 
@@ -471,9 +500,10 @@ function renderCliente(id) {
       alto
         ? (() => {
             const p = partida(alto.partidaId);
+            const t = titular(p);
             return `<div class="banner alto">
               <strong>Riesgo alto:</strong> ${esc(MOVIMIENTOS[alto.mov])} el ${fechaHora(alto.ts)} sobre la partida ${esc(p.partida)}
-              (${esc(REGISTROS[p.registro])}, ${esc(p.oficina)}) — titular ${esc(titular(p).tipo === 'aval' ? 'aval ' : '')}${esc(titular(p).nombre)}.${alto.prueba ? ' <span class="tag prueba">Prueba</span>' : ''}
+              (${esc(REGISTROS[p.registro])}, ${esc(p.oficina || '')}) — titular ${t.tipo === 'aval' ? 'aval ' : ''}${esc(t.nombre)}.${tagOrigen(alto)}
             </div>`;
           })()
         : ''
@@ -483,7 +513,7 @@ function renderCliente(id) {
       <div class="kpi"><span class="kpi-label">Partidas vigiladas</span><strong>${ps.length}</strong><span class="kpi-sub">${ps.filter((p) => !esDelAval(p)).length} del cliente · ${ps.filter(esDelAval).length} de avales</span></div>
       <div class="kpi"><span class="kpi-label">Avales</span><strong>${avs.length}</strong><span class="kpi-sub">${avs.filter((a) => a.tipo === 'juridica').length} empresa(s) · ${avs.filter((a) => a.tipo !== 'juridica').length} persona(s)</span></div>
       <div class="kpi ${riesgo === 'alto' ? 'kpi-alto' : ''}"><span class="kpi-label">Alertas</span><strong>${als.length}</strong><span class="kpi-sub">${als.filter((a) => a.riesgo === 'alto').length} de riesgo alto</span></div>
-      <div class="kpi"><span class="kpi-label">Expediente</span><strong>${c.documentos ? `${nDocs}/${DOCUMENTOS.length}` : '—'}</strong><span class="kpi-sub">documentos en carpeta</span></div>
+      <div class="kpi"><span class="kpi-label">Expediente</span><strong>${nDocs}/${DOCUMENTOS.length}</strong><span class="kpi-sub">documentos en carpeta</span></div>
     </div>
 
     <div class="cliente-grid">
@@ -495,16 +525,12 @@ function renderCliente(id) {
               ps.length
                 ? `<select class="select-sm" id="filtroHistorial" aria-label="Filtrar por partida">
                     <option value="todas">Todas las partidas</option>
-                    ${ps.map((p) => `<option value="${esc(p.id)}" ${ui.historialPartida === p.id ? 'selected' : ''}>${esc(p.partida)} · ${esc(REGISTROS[p.registro].replace('Registro de ', ''))}</option>`).join('')}
+                    ${ps.map((p) => `<option value="${esc(p.id)}" ${ui.historialPartida === p.id ? 'selected' : ''}>${esc(p.partida)} · ${esc((REGISTROS[p.registro] || '').replace('Registro de ', ''))}</option>`).join('')}
                   </select>`
                 : ''
             }
           </div>
-          ${
-            ev.length
-              ? `<ol class="timeline">${ev.map(itemHistorial).join('')}</ol>`
-              : vacio(ps.length ? 'Sin movimientos para esta partida.' : 'Aún no hay partidas vigiladas para este cliente.')
-          }
+          ${ev.length ? `<ol class="timeline">${ev.map(itemHistorial).join('')}</ol>` : vacio(ps.length ? 'Sin movimientos para esta partida.' : 'Aún no hay partidas vigiladas para este cliente.')}
         </div>
 
         <div class="panel">
@@ -529,12 +555,12 @@ function renderCliente(id) {
 
       <div class="col-side">
         <div class="panel">
-          <div class="panel-head"><h2>Avales</h2></div>
+          <div class="panel-head"><h2>Avales</h2><button class="btn btn-ghost btn-sm" data-accion="aval" data-id="${esc(id)}">+ Aval</button></div>
           ${
             avs.length
               ? `<ul class="aval-list">${avs
                   .map((a) => {
-                    const otro = a.clienteId && cliente(a.clienteId);
+                    const otro = a.clienteRelacionado && cliente(a.clienteRelacionado);
                     const n = ps.filter((p) => p.titular === a.id).length;
                     return `<li>
                       <i class="aval-ico ${a.tipo === 'juridica' ? 'pj' : 'pn'}"></i>
@@ -545,6 +571,7 @@ function renderCliente(id) {
                         ${otro ? `<a class="link small" href="#cliente/${esc(otro.id)}">También es cliente de Global →</a>` : ''}
                       </div>
                       <span class="pill">${n} partida${n === 1 ? '' : 's'}</span>
+                      <button class="icon-btn sm" data-accion="borrar-aval" data-id="${esc(a.id)}" title="Eliminar aval" aria-label="Eliminar aval">✕</button>
                     </li>`;
                   })
                   .join('')}</ul>`
@@ -553,19 +580,28 @@ function renderCliente(id) {
           ${c.nota ? `<p class="note">${esc(c.nota)}</p>` : ''}
         </div>
 
-        ${
-          c.documentos
-            ? `<div class="panel">
-                <div class="panel-head"><h2>Expediente</h2><span class="muted small">${nDocs}/${DOCUMENTOS.length}</span></div>
-                <ul class="docs">${DOCUMENTOS.map(([k, t]) => `<li class="${docs[k] ? 'si' : 'no'}">${docs[k] ? '✓' : '—'} ${t}</li>`).join('')}</ul>
-              </div>`
-            : ''
-        }
+        <div class="panel">
+          <div class="panel-head"><h2>Expediente</h2><span class="muted small">Marca lo que ya está en la carpeta</span></div>
+          <ul class="docs docs-edit">${DOCUMENTOS.map(
+            ([k, t]) => `<li><label class="${docs[k] ? 'si' : 'no'}"><input type="checkbox" data-doc="${k}" ${docs[k] ? 'checked' : ''} /> ${t}</label></li>`
+          ).join('')}</ul>
+        </div>
+
+        <button class="btn btn-ghost btn-danger-text" data-accion="borrar-cliente" data-id="${esc(id)}">Eliminar cliente</button>
       </div>
     </div>`;
 
   const f = $('filtroHistorial');
   if (f) f.addEventListener('change', (e) => { ui.historialPartida = e.target.value; renderCliente(id); });
+  cont.querySelectorAll('[data-doc]').forEach((chk) =>
+    chk.addEventListener('change', async () => {
+      const nuevos = { ...docs, [chk.dataset.doc]: chk.checked };
+      const { error } = await sb.from('clientes').update({ documentos: nuevos }).eq('id', id);
+      if (error) return toast('No se guardó: ' + mensajeError(error));
+      await refrescar();
+      toast('Expediente actualizado');
+    })
+  );
 }
 
 function itemHistorial(e) {
@@ -589,7 +625,8 @@ function itemHistorial(e) {
       <div class="tl-top"><strong>${esc(MOVIMIENTOS[e.mov] || e.mov)}</strong> ${badgeRiesgo(e.riesgo)}${tagOrigen(e)}<span class="tl-date">${fechaHora(e.ts)}</span></div>
       <div class="tl-meta">${meta}</div>
       ${e.detalle ? `<p>${esc(e.detalle)}</p>` : ''}
-      ${e.base ? '' : `<button class="link small btn-link-danger" data-accion="borrar-alerta" data-id="${esc(e.id)}">Eliminar</button>`}
+      <div class="tl-foot"><span class="muted small">${quien(e.creadoPor).replace(' · ', '')}</span>
+        <button class="link small btn-link-danger" data-accion="borrar-alerta" data-id="${esc(e.id)}">Eliminar</button></div>
     </div>
   </li>`;
 }
@@ -615,6 +652,7 @@ function grupoPartidas({ tipo, titulo, sub, lista, clienteId, titularId }) {
                   <span class="muted block small">${esc(REGISTROS[p.registro] || '')} · ${esc(p.oficina || '')} · afiliada ${fecha(p.fechaRegistro)}</span></div>
                 ${ult ? badgeRiesgo(ult.riesgo) : '<span class="badge ok">Sin movimientos</span>'}
                 <button class="btn btn-ghost btn-sm" data-accion="alerta" data-id="${esc(p.id)}">+ Alerta</button>
+                <button class="icon-btn sm" data-accion="borrar-partida" data-id="${esc(p.id)}" title="Eliminar partida" aria-label="Eliminar partida">✕</button>
               </li>`;
             })
             .join('')}</ul>`
@@ -660,6 +698,7 @@ $('alCliente').addEventListener('change', (e) => opcionesPartidas(e.target.value
 $('alMov').addEventListener('change', (e) => {
   if (RIESGO_POR_MOV[e.target.value]) $('alRiesgo').value = RIESGO_POR_MOV[e.target.value];
 });
+$('avTipo').addEventListener('change', (e) => document.querySelector('.solo-pj').toggleAttribute('hidden', e.target.value !== 'juridica'));
 
 function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
   const m = $(id);
@@ -671,7 +710,7 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
     if (cid) $('parCliente').value = cid;
     opcionesTitular($('parCliente').value);
     if (tid) $('parTitular').value = tid;
-    $('parFecha').value = new Date().toISOString().slice(0, 10);
+    $('parFecha').value = hoyIso();
   }
   if (id === 'modalAlerta') {
     opcionesClientes($('alCliente'), true);
@@ -680,6 +719,11 @@ function abrirModal(id, { cliente: cid, partida: pid, titular: tid } = {}) {
     opcionesPartidas($('alCliente').value);
     if (pid) $('alPartida').value = pid;
   }
+  if (id === 'modalAval') {
+    opcionesClientes($('avCliente'));
+    if (cid) $('avCliente').value = cid;
+    document.querySelector('.solo-pj').hidden = true;
+  }
   m.showModal();
 }
 document.querySelectorAll('dialog').forEach((d) =>
@@ -687,6 +731,31 @@ document.querySelectorAll('dialog').forEach((d) =>
     if (e.target === d) d.close();
   })
 );
+
+// ---------- Escritura en la base de datos ----------
+async function guardarEn(tabla, fila, msgEl, okTexto, modal) {
+  const btn = msgEl.closest('form').querySelector('[type=submit]');
+  btn.disabled = true;
+  msgEl.textContent = '';
+  const { error } = await sb.from(tabla).insert(fila);
+  btn.disabled = false;
+  if (error) {
+    msgEl.textContent = 'No se guardó: ' + mensajeError(error);
+    return false;
+  }
+  if (modal) $(modal).close();
+  await refrescar();
+  toast(okTexto);
+  return true;
+}
+
+async function borrar(tabla, id, pregunta) {
+  if (!confirm(pregunta)) return;
+  const { error } = await sb.from(tabla).delete().eq('id', id);
+  if (error) return toast('No se eliminó: ' + mensajeError(error));
+  await refrescar();
+  toast('Eliminado');
+}
 
 // ---------- Clics ----------
 document.addEventListener('click', (e) => {
@@ -706,28 +775,18 @@ document.addEventListener('click', (e) => {
       case 'partida-titular': return abrirModal('modalPartida', { cliente: id, titular: acc.dataset.titular });
       case 'alerta': return abrirModal('modalAlerta', { partida: id });
       case 'alerta-cliente': return abrirModal('modalAlerta', { cliente: id });
-      case 'borrar-alerta':
-        if (!confirm('¿Eliminar esta alerta?')) return;
-        extra.alertas = extra.alertas.filter((a) => a.id !== id);
-        break;
-      case 'borrar-cliente': {
-        if (!confirm('¿Eliminar este cliente, sus partidas y alertas?')) return;
-        const ids = extra.partidas.filter((p) => p.clienteId === id).map((p) => p.id);
-        extra.alertas = extra.alertas.filter((a) => !ids.includes(a.partidaId));
-        extra.partidas = extra.partidas.filter((p) => p.clienteId !== id);
-        extra.clientes = extra.clientes.filter((c) => c.id !== id);
-        guardar();
-        location.hash = 'clientes';
-        return;
-      }
+      case 'aval': return abrirModal('modalAval', { cliente: id });
+      case 'borrar-alerta': return borrar('alertas', id, '¿Eliminar esta alerta? Se borrará para todo el equipo.');
+      case 'borrar-partida': return borrar('partidas', id, '¿Eliminar esta partida y su historial? Se borrará para todo el equipo.');
+      case 'borrar-aval': return borrar('avales', id, '¿Eliminar este aval y sus partidas? Se borrará para todo el equipo.');
+      case 'borrar-cliente':
+        return borrar('clientes', id, '¿Eliminar este cliente con sus avales, partidas y alertas? Se borrará para todo el equipo.').then(() => {
+          if (!cliente(id)) location.hash = 'clientes';
+        });
       default: return;
     }
-    guardar();
-    render();
-    return;
   }
 
-  // Filas clicables: llevan a la página del cliente
   const fila = e.target.closest('[data-ir]');
   if (fila && !e.target.closest('a, button, select, input')) location.hash = fila.dataset.ir;
 });
@@ -737,83 +796,141 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------- Formularios ----------
-$('formCliente').addEventListener('submit', (e) => {
+$('formCliente').addEventListener('submit', async (e) => {
   e.preventDefault();
   const ruc = $('cliRuc').value.trim();
   if (!/^\d{11}$/.test(ruc)) return ($('msgCliente').textContent = 'El RUC debe tener 11 dígitos.');
-  if (clientes().some((c) => c.ruc === ruc)) return ($('msgCliente').textContent = 'Ya existe un cliente con ese RUC.');
-  const id = uid();
-  extra.clientes.push({
-    id,
-    producto: $('cliProducto').value,
-    nombre: $('cliNombre').value.trim().toUpperCase(),
-    ruc,
-    partidaPJ: $('cliPartida').value.trim(),
-    fechaContrato: $('cliFecha').value,
-    avales: [],
-  });
-  guardar();
-  $('modalCliente').close();
-  location.hash = `cliente/${id}`;
-  toast('Cliente agregado');
+  const id = crypto.randomUUID();
+  const ok = await guardarEn(
+    'clientes',
+    {
+      id,
+      producto: $('cliProducto').value,
+      nombre: $('cliNombre').value.trim().toUpperCase(),
+      ruc,
+      partida_pj: $('cliPartida').value.trim() || null,
+      fecha_contrato: $('cliFecha').value || null,
+    },
+    $('msgCliente'),
+    'Cliente agregado',
+    'modalCliente'
+  );
+  if (ok) location.hash = `cliente/${id}`;
 });
 
-$('formPartida').addEventListener('submit', (e) => {
+$('formAval').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pj = $('avTipo').value === 'juridica';
+  await guardarEn(
+    'avales',
+    {
+      cliente_id: $('avCliente').value,
+      tipo: $('avTipo').value,
+      nombre: $('avNombre').value.trim().toUpperCase(),
+      ruc: pj ? $('avRuc').value.trim() || null : null,
+      partida_pj: pj ? $('avPartida').value.trim() || null : null,
+      nota: $('avNota').value.trim() || null,
+    },
+    $('msgAval'),
+    'Aval agregado',
+    'modalAval'
+  );
+});
+
+$('formPartida').addEventListener('submit', async (e) => {
   e.preventDefault();
   const clienteId = $('parCliente').value;
   const numero = $('parNumero').value.trim();
   if (!clienteId || !numero) return;
-  if (partidasDe(clienteId).some((p) => p.partida === numero)) return ($('msgPartida').textContent = 'Esa partida ya está registrada para este cliente.');
-  extra.partidas.push({
-    id: uid(),
-    clienteId,
-    titular: $('parTitular').value || 'cliente',
-    registro: $('parRegistro').value,
-    partida: numero,
-    ficha: $('parFicha').value.trim(),
-    oficina: $('parOficina').value.trim(),
-    zona: '',
-    fechaRegistro: $('parFecha').value,
-    alertaRegistral: $('parAlerta').checked,
-    estado: $('parAlerta').checked ? 'Activa' : 'Pendiente',
-  });
-  guardar();
-  $('modalPartida').close();
-  render();
-  toast(`Partida ${numero} agregada`);
+  const tit = $('parTitular').value;
+  await guardarEn(
+    'partidas',
+    {
+      cliente_id: clienteId,
+      aval_id: tit && tit !== 'cliente' ? tit : null,
+      registro: $('parRegistro').value,
+      partida: numero,
+      ficha: $('parFicha').value.trim() || null,
+      oficina: $('parOficina').value.trim(),
+      fecha_registro: $('parFecha').value || null,
+      alerta_registral: $('parAlerta').checked,
+      estado: $('parAlerta').checked ? 'Activa' : 'Pendiente',
+    },
+    $('msgPartida'),
+    `Partida ${numero} agregada`,
+    'modalPartida'
+  );
 });
 
-$('formAlerta').addEventListener('submit', (e) => {
+$('formAlerta').addEventListener('submit', async (e) => {
   e.preventDefault();
   const partidaId = $('alPartida').value;
   if (!partidaId || !$('alMov').value || !$('alRiesgo').value) return ($('msgAlerta').textContent = 'Completa cliente, partida, movimiento y riesgo.');
-  const nueva = {
-    id: uid(),
-    partidaId,
-    mov: $('alMov').value,
-    riesgo: $('alRiesgo').value,
-    detalle: $('alDetalle').value.trim(),
-    ts: Date.now(),
-  };
-  if (esDuplicada(nueva, alertas())) {
-    return ($('msgAlerta').textContent = 'Esta alerta ya está registrada hoy para esa partida. Revisa el historial del cliente.');
+  const ok = await guardarEn(
+    'alertas',
+    {
+      partida_id: partidaId,
+      mov: $('alMov').value,
+      riesgo: $('alRiesgo').value,
+      detalle: $('alDetalle').value.trim() || null,
+    },
+    $('msgAlerta'),
+    'Alerta registrada para todo el equipo',
+    'modalAlerta'
+  );
+  if (!ok && /ya existe/.test($('msgAlerta').textContent)) {
+    $('msgAlerta').textContent = 'Esta alerta ya está registrada hoy para esa partida. Revisa el historial del cliente.';
   }
-  extra.alertas.push(nueva);
-  guardar();
-  $('modalAlerta').close();
-  render();
-  toast('Alerta registrada');
 });
 
-$('btnReiniciar').addEventListener('click', () => {
-  if (!confirm('Se borrará lo agregado en este navegador (la cartera base se mantiene). ¿Continuar?')) return;
-  extra = { clientes: [], partidas: [], alertas: [] };
-  guardar();
-  render();
-  toast('Datos reiniciados');
+// ---------- Sesión ----------
+function mostrarLogin(texto) {
+  $('login').hidden = false;
+  document.body.classList.add('sin-sesion');
+  if (texto) $('loginInfo').textContent = texto;
+}
+async function entrar(session) {
+  usuario = session.user;
+  $('usuarioEmail').textContent = usuario.email;
+  $('login').hidden = true;
+  document.body.classList.remove('sin-sesion');
+  await refrescar();
+  irA(location.hash.slice(1) || 'resumen');
+}
+
+$('formLogin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('btnLogin').disabled = true;
+  $('msgLogin').textContent = '';
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('loginEmail').value.trim(), password: $('loginPass').value });
+  $('btnLogin').disabled = false;
+  if (error) return ($('msgLogin').textContent = 'Correo o contraseña incorrectos.');
+  $('loginPass').value = '';
+  entrar(data.session);
 });
+
+$('btnSalir').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  usuario = null;
+  db = { clientes: [], avales: [], partidas: [], alertas: [] };
+  mostrarLogin('Sesión cerrada.');
+});
+
+// Actualiza los datos al volver a la pestaña (por si otra persona registró algo)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && usuario) refrescar();
+});
+setInterval(() => usuario && !document.hidden && refrescar(), 60000);
 
 // ---------- Inicio ----------
 $('year').textContent = new Date().getFullYear();
-cargar();
-irA(location.hash.slice(1) || 'resumen');
+(async () => {
+  if (!sb) {
+    mostrarLogin('Falta conectar la base de datos (config.js).');
+    $('formLogin').querySelectorAll('input, button').forEach((x) => (x.disabled = true));
+    return;
+  }
+  const { data } = await sb.auth.getSession();
+  if (data.session) entrar(data.session);
+  else mostrarLogin();
+})();

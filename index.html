@@ -41,6 +41,10 @@
         </a>
       </nav>
       <div class="sidebar-foot">
+        <div class="usuario">
+          <span class="usuario-email" id="usuarioEmail"></span>
+          <button class="link small" id="btnSalir" type="button">Cerrar sesión</button>
+        </div>
         <a class="ext-link" href="https://www.sunarp.gob.pe/" target="_blank" rel="noopener">
           Alerta Registral SUNARP ↗
         </a>
@@ -171,7 +175,6 @@
               <button data-valor="medio"><i class="dot medio"></i>Medio</button>
               <button data-valor="bajo"><i class="dot bajo"></i>Bajo</button>
             </div>
-            <button class="btn btn-ghost btn-danger-text ml-auto" id="btnReiniciar" title="Borra lo agregado en este navegador">Reiniciar datos locales</button>
           </div>
           <div class="panel p0">
             <div class="table-wrap">
@@ -286,7 +289,45 @@
 
   <div class="toast" id="toast" role="status"></div>
 
-  <script src="clientes.js"></script>
+  <!-- ===== INICIO DE SESIÓN ===== -->
+  <div class="login" id="login" hidden>
+    <form class="login-card" id="formLogin">
+      <img src="assets/logo-global.png" alt="Global Factoring" />
+      <h1>Sistema Alerta Registral</h1>
+      <p class="muted small" id="loginInfo">Ingresa con tu usuario del equipo.</p>
+      <label class="field">Correo<input type="email" id="loginEmail" autocomplete="username" required /></label>
+      <label class="field">Contraseña<input type="password" id="loginPass" autocomplete="current-password" required /></label>
+      <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Ingresar</button>
+      <p class="form-msg" id="msgLogin"></p>
+    </form>
+  </div>
+
+  <!-- ===== MODAL: AVAL ===== -->
+  <dialog class="modal" id="modalAval">
+    <form id="formAval" method="dialog">
+      <div class="modal-head"><h3>Agregar aval</h3><button type="button" class="icon-btn" data-cerrar>✕</button></div>
+      <div class="modal-body">
+        <label class="field">Cliente Global<select id="avCliente" required></select></label>
+        <label class="field">Tipo
+          <select id="avTipo"><option value="natural">Persona natural</option><option value="juridica">Persona jurídica</option></select>
+        </label>
+        <label class="field">Nombre o razón social<input id="avNombre" required /></label>
+        <div class="row-2 solo-pj">
+          <label class="field">RUC<input id="avRuc" inputmode="numeric" maxlength="11" /></label>
+          <label class="field">Partida PJ<input id="avPartida" /></label>
+        </div>
+        <label class="field">Nota (opcional)<input id="avNota" placeholder="Ej.: separación de patrimonios" /></label>
+        <p class="form-msg" id="msgAval"></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar aval</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

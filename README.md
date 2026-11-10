@@ -11,18 +11,22 @@ Página web básica para un **sistema de monitoreo y alertas de movimientos regi
 sistema-alerta-registral/
 ├── index.html             → Página principal (estructura y contenido)
 ├── styles.css             → Estilos (colores del logo de Global Factoring)
-├── clientes.js            → Cartera de clientes factoring/confirming y sus bienes
-├── script.js              → Lógica (panel, cartera, registro y alertas)
+├── script.js              → Lógica (panel, clientes, partidas, alertas, sesión)
+├── config.js              → Conexión a la base de datos (Supabase, llave pública)
 ├── assets/logo-global.png → Logo de la empresa
 └── README.md              → Este archivo
 ```
 
-### Cómo agregar clientes o partidas SUNARP
-Abre `clientes.js`. Cada cliente es un bloque `{ ... }`. Para registrar las partidas
-afiliadas en Alerta Registral, llena la lista `partidas` del cliente (las
-instrucciones están al inicio del archivo).
-Los bienes y alertas que se agregan desde la página se guardan solo en ese navegador;
-lo que va en `clientes.js` lo ve todo el equipo.
+### Dónde están los datos
+Los clientes, avales, partidas y alertas están en una **base de datos Supabase**
+(proyecto "Alerta Registral GF"), no en GitHub. Todo se agrega y edita **desde la web**,
+y lo que registra una persona lo ve todo el equipo.
+
+- Para entrar se necesita un usuario. Los usuarios se crean en
+  Supabase → **Authentication → Users → Add user** (marcar *Auto Confirm User*).
+- El registro público está desactivado: nadie puede crearse una cuenta solo.
+- `config.js` solo tiene la llave **pública** (publishable). Nunca subir la
+  llave *service_role / secret*.
 
 ---
 
