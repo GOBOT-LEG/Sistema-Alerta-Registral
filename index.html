@@ -4,8 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GLOBAL FACTORING — Sistema Alerta Registral</title>
-  <meta name="description" content="Sistema de control y alertas registrales de GLOBAL FACTORING: monitoreo de partidas de predios, vehículos y maquinaria de clientes, clasificadas por riesgo alto, medio y bajo." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏦</text></svg>" />
+  <meta name="description" content="Seguimiento registral de la cartera de clientes de factoring y confirming de GLOBAL FACTORING S.A.: partidas de predios, vehículos y maquinaria vigiladas con Alerta Registral SUNARP." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="assets/logo-global.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,20 +17,17 @@
   <!-- ===== ENCABEZADO ===== -->
   <header class="header">
     <div class="container header-inner">
-      <a href="#inicio" class="logo">
-        <span class="logo-icon">🏦</span>
-        <span class="logo-text">
-          Global<strong>Factoring</strong>
-          <span class="logo-sub">Alerta Registral</span>
-        </span>
+      <a href="#inicio" class="logo" aria-label="Global Factoring – inicio">
+        <img src="assets/logo-global.png" alt="Global Factoring" class="logo-img" />
+        <span class="logo-sub">Alerta<br />Registral</span>
       </a>
 
       <nav class="nav" id="nav">
-        <a href="#inicio">Inicio</a>
         <a href="#panel">Panel</a>
+        <a href="#cartera">Cartera</a>
         <a href="#registro">Registro</a>
         <a href="#alertas">Alertas</a>
-        <a href="#nosotros">Nosotros</a>
+        <a href="#como-funciona">Cómo funciona</a>
       </nav>
 
       <button class="menu-btn" id="menuBtn" aria-label="Abrir menú">☰</button>
@@ -35,23 +36,23 @@
 
   <!-- ===== PORTADA ===== -->
   <section class="hero" id="inicio">
-    <div class="container">
-      <span class="hero-badge">🛡️ Vigilancia registral de la cartera de créditos</span>
-      <h1>Antes de que tu cliente venda sus bienes, <span class="highlight">tú ya lo sabrás</span></h1>
+    <div class="container hero-inner">
+      <span class="hero-badge">Seguimiento registral · Factoring y Confirming</span>
+      <h1>Si un cliente mueve sus bienes, <span class="highlight">lo sabremos primero</span></h1>
       <p class="hero-sub">
-        GLOBAL FACTORING monitorea las partidas registrales de predios, vehículos y maquinaria
-        de sus clientes con crédito vigente. Cada movimiento —venta, embargo, hipoteca o
-        anotación— se registra y se clasifica por nivel de riesgo: alto, medio o bajo.
+        Vigilamos en SUNARP las partidas de predios, vehículos y maquinaria de los clientes
+        con operaciones vigentes en GLOBAL FACTORING. Cada venta, embargo o hipoteca que se
+        inscriba genera una alerta clasificada por riesgo, para proteger el crédito a tiempo.
       </p>
       <div class="hero-actions">
-        <a href="#registro" class="btn btn-primary">Registrar una alerta</a>
+        <a href="#cartera" class="btn btn-primary">Ver cartera de clientes</a>
         <a href="#como-funciona" class="btn btn-outline">¿Cómo funciona?</a>
       </div>
 
       <div class="hero-stats">
-        <div class="stat"><strong>24/7</strong><span>Vigilancia de partidas</span></div>
-        <div class="stat"><strong>3 niveles</strong><span>Riesgo: alto · medio · bajo</span></div>
-        <div class="stat"><strong>&lt; 2 min</strong><span>Registrar un movimiento</span></div>
+        <div class="stat"><strong id="heroClientes">0</strong><span>Clientes en seguimiento</span></div>
+        <div class="stat"><strong id="heroFactoring">0</strong><span>Factoring</span></div>
+        <div class="stat"><strong id="heroConfirming">0</strong><span>Confirming</span></div>
       </div>
     </div>
   </section>
@@ -64,50 +65,74 @@
 
       <div class="panel-grid">
         <div class="panel-card">
-          <span class="panel-icon">🧾</span>
+          <span class="panel-label">Clientes</span>
           <strong id="statClientes">0</strong>
-          <span>Clientes vigilados</span>
+          <span class="panel-foot"><span id="statFactoring">0</span> factoring · <span id="statConfirming">0</span> confirming</span>
         </div>
         <div class="panel-card">
-          <span class="panel-icon">🏢</span>
+          <span class="panel-label">Bienes monitoreados</span>
           <strong id="statBienes">0</strong>
-          <span>Bienes monitoreados</span>
+          <span class="panel-foot"><span id="statInscritos">0</span> en Alerta Registral</span>
         </div>
         <div class="panel-card">
-          <span class="panel-icon">🚨</span>
+          <span class="panel-label">Clientes sin partidas</span>
+          <strong id="statPendientes">0</strong>
+          <span class="panel-foot">Pendiente consulta SUNARP</span>
+        </div>
+        <div class="panel-card">
+          <span class="panel-label">Alertas totales</span>
           <strong id="statAlertas">0</strong>
-          <span>Alertas totales</span>
+          <span class="panel-foot">Movimientos registrados</span>
         </div>
         <div class="panel-card risk-alto">
-          <span class="panel-icon">🔴</span>
+          <span class="panel-label">Riesgo alto</span>
           <strong id="statAlto">0</strong>
-          <span>Riesgo alto</span>
+          <span class="panel-foot">Venta o transferencia</span>
         </div>
         <div class="panel-card risk-medio">
-          <span class="panel-icon">🟠</span>
+          <span class="panel-label">Riesgo medio</span>
           <strong id="statMedio">0</strong>
-          <span>Riesgo medio</span>
+          <span class="panel-foot">Embargo o nueva garantía</span>
         </div>
         <div class="panel-card risk-bajo">
-          <span class="panel-icon">🟢</span>
+          <span class="panel-label">Riesgo bajo</span>
           <strong id="statBajo">0</strong>
-          <span>Riesgo bajo</span>
+          <span class="panel-foot">Anotaciones o cancelaciones</span>
         </div>
       </div>
+    </div>
+  </section>
 
-      <p class="panel-note">
-        El riesgo se sugiere automáticamente según el movimiento registral detectado
-        y puede ajustarse manualmente al registrar cada alerta.
+  <!-- ===== CARTERA DE CLIENTES ===== -->
+  <section class="section section-alt" id="cartera">
+    <div class="container">
+      <h2 class="section-title">Cartera de clientes</h2>
+      <p class="section-sub">
+        Clientes con contrato marco vigente. Cada ficha muestra sus datos registrales,
+        el estado de su expediente y los bienes que estamos vigilando.
       </p>
+
+      <div class="cartera-toolbar">
+        <div class="tabs" role="tablist" aria-label="Filtrar por producto">
+          <button type="button" class="tab active" data-filtro="todos" role="tab" aria-selected="true">Todos <span id="tabTodos" class="tab-count">0</span></button>
+          <button type="button" class="tab" data-filtro="factoring" role="tab" aria-selected="false">Factoring <span id="tabFactoring" class="tab-count">0</span></button>
+          <button type="button" class="tab" data-filtro="confirming" role="tab" aria-selected="false">Confirming <span id="tabConfirming" class="tab-count">0</span></button>
+        </div>
+        <input type="search" id="buscarCliente" class="search" placeholder="Buscar por nombre o RUC…" aria-label="Buscar cliente" />
+      </div>
+
+      <div class="cartera-grid" id="carteraGrid"></div>
+      <p class="alert-empty" id="carteraVacia" hidden>No hay clientes que coincidan con la búsqueda.</p>
     </div>
   </section>
 
   <!-- ===== REGISTRO (3 PASOS) ===== -->
-  <section class="section section-alt" id="registro">
+  <section class="section" id="registro">
     <div class="container">
       <h2 class="section-title">Registro de la cartera vigilada</h2>
       <p class="section-sub">
-        Sigue el orden: primero el cliente, después sus bienes y luego las alertas de cada partida.
+        Sigue el orden: primero el cliente, después las partidas de sus bienes (de la consulta SUNARP)
+        y luego las alertas que lleguen.
       </p>
 
       <div class="grid grid-3">
@@ -116,31 +141,34 @@
         <div class="card paso">
           <div class="paso-head">
             <div class="step-num">1</div>
-            <h3>🧾 Cliente</h3>
+            <h3>Cliente</h3>
           </div>
           <form id="formCliente" class="form">
             <div class="field">
-              <label for="cliNombre">Nombre o razón social</label>
+              <label for="cliNombre">Razón social</label>
               <input type="text" id="cliNombre" placeholder="Ej.: Comercial Andina S.A.C." required />
             </div>
             <div class="field">
-              <label for="cliDoc">RUC / DNI</label>
-              <input type="text" id="cliDoc" placeholder="Ej.: RUC 20512345678" required />
+              <label for="cliDoc">RUC</label>
+              <input type="text" id="cliDoc" inputmode="numeric" pattern="\d{11}" maxlength="11" placeholder="11 dígitos" required />
+            </div>
+            <div class="field">
+              <label for="cliProducto">Producto</label>
+              <select id="cliProducto" required>
+                <option value="factoring">Factoring</option>
+                <option value="confirming">Confirming</option>
+              </select>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Registrar cliente</button>
             <p class="form-msg" id="msgCliente"></p>
           </form>
-          <div class="mini-list">
-            <span class="mini-title">Clientes registrados</span>
-            <div id="listaClientes"></div>
-          </div>
         </div>
 
         <!-- Paso 2: Bien -->
         <div class="card paso">
           <div class="paso-head">
             <div class="step-num">2</div>
-            <h3>🏢 Bien del cliente</h3>
+            <h3>Bien del cliente</h3>
           </div>
           <form id="formBien" class="form">
             <div class="field">
@@ -166,20 +194,20 @@
               <label for="bienDesc">Descripción (opcional)</label>
               <input type="text" id="bienDesc" placeholder="Ej.: Local comercial en Miraflores" />
             </div>
+            <label class="check">
+              <input type="checkbox" id="bienInscrito" />
+              Ya está inscrita en Alerta Registral SUNARP
+            </label>
             <button type="submit" class="btn btn-primary btn-block">Registrar bien</button>
             <p class="form-msg" id="msgBien"></p>
           </form>
-          <div class="mini-list">
-            <span class="mini-title">Bienes registrados</span>
-            <div id="listaBienes"></div>
-          </div>
         </div>
 
         <!-- Paso 3: Alerta -->
         <div class="card paso">
           <div class="paso-head">
             <div class="step-num">3</div>
-            <h3>🚨 Alerta registral</h3>
+            <h3>Alerta registral</h3>
           </div>
           <form id="formAlerta" class="form">
             <div class="field">
@@ -189,7 +217,7 @@
               </select>
             </div>
             <div class="field">
-              <label for="alertaBien">Bien a vigilar</label>
+              <label for="alertaBien">Bien vigilado</label>
               <select id="alertaBien" required>
                 <option value="">Selecciona un bien…</option>
               </select>
@@ -210,9 +238,9 @@
               <label for="alertaRiesgo">Nivel de riesgo</label>
               <select id="alertaRiesgo" required>
                 <option value="">Selecciona una opción…</option>
-                <option value="alto">🔴 Riesgo alto</option>
-                <option value="medio">🟠 Riesgo medio</option>
-                <option value="bajo">🟢 Riesgo bajo</option>
+                <option value="alto">Riesgo alto</option>
+                <option value="medio">Riesgo medio</option>
+                <option value="bajo">Riesgo bajo</option>
               </select>
               <span class="hint" id="riesgoHint">Se sugiere automáticamente según el movimiento.</span>
             </div>
@@ -230,78 +258,78 @@
   </section>
 
   <!-- ===== ALERTAS ACTIVAS ===== -->
-  <section class="section" id="alertas">
+  <section class="section section-alt" id="alertas">
     <div class="container">
-      <h2 class="section-title">Alertas registrales activas</h2>
+      <h2 class="section-title">Alertas registrales</h2>
       <p class="section-sub">
-        Movimientos detectados en las partidas de los clientes de la cartera,
-        ordenados del más reciente al más antiguo.
+        Movimientos detectados en las partidas vigiladas, del más reciente al más antiguo.
       </p>
 
       <div class="toolbar">
-        <button type="button" class="btn btn-neutral btn-sm" id="btnEjemplo">↩️ Restaurar ejemplo</button>
-        <button type="button" class="btn btn-danger btn-sm" id="btnBorrar">🗑️ Borrar todo</button>
+        <button type="button" class="btn btn-neutral btn-sm" id="btnSimulacion">Ver simulación de alertas</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnReiniciar">Reiniciar demo</button>
       </div>
 
       <p class="alert-empty" id="alertaVacia">
-        No hay alertas registradas. Crea la primera en el paso 3 del registro. 👈
+        Aún no hay alertas. Cuando SUNARP avise de un movimiento en una partida vigilada,
+        regístralo en el paso 3. Para ver cómo se vería, pulsa <strong>Ver simulación de alertas</strong>.
       </p>
       <ul class="alert-list" id="listaAlertas"></ul>
     </div>
   </section>
 
   <!-- ===== CÓMO FUNCIONA ===== -->
-  <section class="section section-alt" id="como-funciona">
+  <section class="section" id="como-funciona">
     <div class="container">
       <h2 class="section-title">¿Cómo funciona?</h2>
-      <p class="section-sub">El flujo de trabajo del equipo de riesgo y cobranza de GLOBAL FACTORING.</p>
+      <p class="section-sub">El flujo del equipo de riesgos y cobranza de GLOBAL FACTORING.</p>
 
       <div class="grid grid-4">
         <div class="step">
           <div class="step-num">1</div>
-          <h3>Registra al cliente</h3>
-          <p>Cada cliente con crédito vigente ingresa al sistema con su razón social y RUC o DNI.</p>
+          <h3>Contrato marco</h3>
+          <p>El cliente firma su contrato de factoring o confirming con pagaré y avales. Entra a la cartera.</p>
         </div>
         <div class="step">
           <div class="step-num">2</div>
-          <h3>Da de alta sus bienes</h3>
-          <p>Predios, vehículos y maquinaria con su partida o placa registral correspondiente.</p>
+          <h3>Consulta SUNARP</h3>
+          <p>Se buscan en SUNARP los predios y vehículos del cliente y de sus avales, y se guardan en su carpeta.</p>
         </div>
         <div class="step">
           <div class="step-num">3</div>
-          <h3>Detecta el movimiento</h3>
-          <p>Cuando el registro muestra una venta, embargo, hipoteca o anotación, se crea una alerta.</p>
+          <h3>Alerta Registral</h3>
+          <p>Cada partida se inscribe en el servicio Alerta Registral de SUNARP, que avisa por correo de cualquier inscripción.</p>
         </div>
         <div class="step">
           <div class="step-num">4</div>
           <h3>Clasifica y actúa</h3>
-          <p>Cada alerta se marca como riesgo alto, medio o bajo, y cobranza actúa a tiempo.</p>
+          <p>El aviso se registra aquí con su nivel de riesgo y cobranza actúa antes de que el bien salga del patrimonio.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ===== QUIÉNES SOMOS ===== -->
-  <section class="section" id="nosotros">
+  <section class="section section-alt" id="nosotros">
     <div class="container">
-      <h2 class="section-title">Quiénes somos</h2>
-      <p class="section-sub">GLOBAL FACTORING: soluciones de liquidez y control de riesgo para empresas.</p>
+      <h2 class="section-title">GLOBAL FACTORING S.A.</h2>
+      <p class="section-sub">Soluciones de liquidez y control de riesgo para empresas.</p>
 
       <div class="grid grid-3">
         <article class="card">
-          <div class="card-icon">💰</div>
-          <h3>Factoring</h3>
+          <span class="card-tag factoring">Factoring</span>
+          <h3>Liquidez inmediata</h3>
           <p>Convertimos las facturas y créditos comerciales de tu empresa en liquidez inmediata, gestionando el cobro de manera profesional.</p>
         </article>
         <article class="card">
-          <div class="card-icon">🤝</div>
-          <h3>Confirming</h3>
+          <span class="card-tag confirming">Confirming</span>
+          <h3>Pago a proveedores</h3>
           <p>Organizamos y aseguramos los pagos a tus proveedores, optimizando el flujo de caja y las relaciones comerciales de tu negocio.</p>
         </article>
         <article class="card">
-          <div class="card-icon">🛡️</div>
-          <h3>Control de riesgo crediticio</h3>
-          <p>Este sistema nace de una necesidad real: evitar que los bienes de nuestros deudores se vendan o desaparezcan antes del cobro.</p>
+          <span class="card-tag riesgo">Riesgo</span>
+          <h3>Control registral</h3>
+          <p>Este sistema nace de una necesidad real: evitar que los bienes de nuestros clientes se vendan o graven antes del cobro.</p>
         </article>
       </div>
     </div>
@@ -310,16 +338,16 @@
   <!-- ===== PIE DE PÁGINA ===== -->
   <footer class="footer">
     <div class="container footer-inner">
-      <p><strong>🏦 GLOBAL FACTORING</strong></p>
+      <img src="assets/logo-global.png" alt="Global Factoring" class="footer-logo" />
       <p>Factoring · Confirming · Control de riesgo crediticio</p>
       <p class="footer-note">
-        Herramienta de uso interno: los datos se guardan únicamente en este navegador
-        (localStorage) y no se envían a ningún servidor.
+        Herramienta de uso interno. Los bienes y alertas que registres se guardan solo en este navegador.
       </p>
-      <p class="copy">© <span id="year"></span> GLOBAL FACTORING · Sistema Alerta Registral</p>
+      <p class="copy">© <span id="year"></span> GLOBAL FACTORING S.A. · Sistema Alerta Registral</p>
     </div>
   </footer>
 
+  <script src="clientes.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

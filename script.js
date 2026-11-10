@@ -1,17 +1,16 @@
 /* ===================================
    GLOBAL FACTORING — Sistema Alerta Registral
-   Lógica del sistema (datos en localStorage)
+   Lógica del sistema
+   - La cartera base viene de clientes.js (CARTERA).
+   - Lo que se agrega desde la página (clientes, bienes, alertas)
+     se guarda en este navegador (localStorage).
 ==================================== */
 
 // ---------- Menú móvil ----------
 const menuBtn = document.getElementById('menuBtn');
 const nav = document.getElementById('nav');
 
-menuBtn.addEventListener('click', () => {
-  nav.classList.toggle('open');
-});
-
-// Cierra el menú al pulsar un enlace
+menuBtn.addEventListener('click', () => nav.classList.toggle('open'));
 document.querySelectorAll('.nav a').forEach((link) => {
   link.addEventListener('click', () => nav.classList.remove('open'));
 });
@@ -19,127 +18,114 @@ document.querySelectorAll('.nav a').forEach((link) => {
 // ---------- Año dinámico ----------
 document.getElementById('year').textContent = new Date().getFullYear();
 
-// ---------- Referencias y constantes ----------
-const STORAGE_KEY = 'gf_alerta_registral_v1';
-
+// ---------- Constantes ----------
+const STORAGE_KEY = 'gf_alerta_registral_v2';
 const $ = (id) => document.getElementById(id);
 
-// Riesgo sugerido según el tipo de movimiento registral
 const RIESGO_POR_MOVIMIENTO = {
   venta: 'alto',        // El bien puede salir del patrimonio del cliente
-  embargo: 'medio',     // Afectación judicial, aún recuperable
+  embargo: 'medio',     // Afectación judicial de otro acreedor
   garantia: 'medio',    // Nueva carga sobre el bien
   anotacion: 'bajo',    // Informativa, sin afectación directa
-  cancelacion: 'bajo',  // Se levanta una carga (noticia positiva)
+  cancelacion: 'bajo',  // Se levanta una carga
 };
 
-// Etiquetas de riesgo para mostrar en pantalla
+const MOVIMIENTOS = {
+  venta: 'Venta o transferencia de propiedad',
+  embargo: 'Embargo judicial',
+  garantia: 'Hipoteca o constitución de garantía',
+  anotacion: 'Anotación o aviso informativo',
+  cancelacion: 'Cancelación de carga o gravamen',
+  otro: 'Otro movimiento',
+};
+
 const RIESGO_ETIQUETA = {
-  alto: { icono: '🔴', texto: 'Riesgo alto' },
-  medio: { icono: '🟠', texto: 'Riesgo medio' },
-  bajo: { icono: '🟢', texto: 'Riesgo bajo' },
+  alto: 'Riesgo alto',
+  medio: 'Riesgo medio',
+  bajo: 'Riesgo bajo',
 };
 
-// Tipos de bien con su ícono
 const TIPOS_BIEN = {
-  predio: { nombre: 'Predio', icono: '🏢' },
-  vehiculo: { nombre: 'Vehículo', icono: '🚗' },
-  maquinaria: { nombre: 'Maquinaria', icono: '⚙️' },
+  predio: 'Predio',
+  vehiculo: 'Vehículo',
+  maquinaria: 'Maquinaria',
 };
 
-// ---------- Estado (datos guardados en el navegador) ----------
-let clientes = [];
-let bienes = [];
-let alertas = [];
+const DOCUMENTOS = [
+  ['contrato', 'Contrato marco'],
+  ['firmado', 'Copia firmada'],
+  ['pagare', 'Pagaré'],
+  ['fichaRuc', 'Ficha RUC'],
+  ['vigencia', 'Vigencia de poder'],
+  ['copiaLiteral', 'Copia literal'],
+  ['reporteTrib', 'Reporte tributario'],
+];
 
-const uid = () =>
-  Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+// ---------- Estado ----------
+// Lo agregado por el usuario; la cartera base siempre se lee de CARTERA.
+let extra = { clientes: [], bienes: [], alertas: [] };
+let filtro = 'todos';
+let busqueda = '';
 
-function fechaAhora() {
-  return new Date().toLocaleString('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const uid = () => Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 
 function guardar() {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ clientes, bienes, alertas })
-  );
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+  } catch {
+    /* navegador sin almacenamiento: la demo sigue funcionando sin guardar */
+  }
 }
 
 function cargar() {
   try {
     const datos = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (datos) {
-      clientes = datos.clientes || [];
-      bienes = datos.bienes || [];
-      alertas = datos.alertas || [];
-    } else {
-      cargarDatosDeEjemplo();
+      extra = {
+        clientes: datos.clientes || [],
+        bienes: datos.bienes || [],
+        alertas: datos.alertas || [],
+      };
     }
   } catch {
-    cargarDatosDeEjemplo();
+    /* datos dañados o sin acceso: empezar vacío */
   }
 }
 
-// Datos de ejemplo para ver el sistema funcionando desde el primer día
-function cargarDatosDeEjemplo() {
-  const ahora = Date.now();
-  const hace = (horas) => ahora - horas * 3600 * 1000;
-
-  clientes = [
-    { id: 'c1', nombre: 'Comercial Andina S.A.C.', doc: 'RUC 20512345678' },
-    { id: 'c2', nombre: 'Transportes del Sur E.I.R.L.', doc: 'RUC 20698765432' },
-  ];
-
-  bienes = [
-    { id: 'b1', clienteId: 'c1', tipo: 'predio', partida: 'Partida 11223344', desc: 'Local comercial – Av. Larco 123, Miraflores' },
-    { id: 'b2', clienteId: 'c1', tipo: 'vehiculo', partida: 'Placa V3K-789', desc: 'Camión volquete 2020' },
-    { id: 'b3', clienteId: 'c2', tipo: 'vehiculo', partida: 'Placa C8P-145', desc: 'Tracto remolcador 2019' },
-    { id: 'b4', clienteId: 'c2', tipo: 'maquinaria', partida: 'Partida 55667788', desc: 'Excavadora Caterpillar 320' },
-  ];
-
-  alertas = [
-    { id: uid(), bienId: 'b1', mov: 'Venta o transferencia de propiedad', riesgo: 'alto', detalle: 'Se inscribió una transferencia de propiedad a favor de un tercero.', ts: hace(2), fecha: '' },
-    { id: uid(), bienId: 'b3', mov: 'Embargo judicial', riesgo: 'medio', detalle: 'Embargo de forma levantado por el Juzgado Civil.', ts: hace(24), fecha: '' },
-    { id: uid(), bienId: 'b2', mov: 'Hipoteca o constitución de garantía', riesgo: 'medio', detalle: '', ts: hace(72), fecha: '' },
-    { id: uid(), bienId: 'b4', mov: 'Anotación o aviso informativo', riesgo: 'bajo', detalle: 'Aviso sobre diligencia preliminar en trámite.', ts: hace(120), fecha: '' },
-    { id: uid(), bienId: 'b1', mov: 'Cancelación de carga o gravamen', riesgo: 'bajo', detalle: 'Se canceló la hipoteca del crédito anterior.', ts: hace(192), fecha: '' },
-  ];
-
-  // Se genera la fecha legible de cada alerta de ejemplo
-  alertas.forEach((a) => {
-    a.fecha = new Date(a.ts).toLocaleString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  });
-
-  guardar();
+// ---------- Datos combinados ----------
+function todosLosClientes() {
+  const base = (typeof CARTERA !== 'undefined' ? CARTERA : []).map((c) => ({ ...c, base: true }));
+  return [...base, ...extra.clientes];
 }
 
+function todosLosBienes() {
+  const base = [];
+  (typeof CARTERA !== 'undefined' ? CARTERA : []).forEach((c) => {
+    (c.bienes || []).forEach((b, i) => base.push({ id: `${c.id}-b${i}`, clienteId: c.id, base: true, ...b }));
+  });
+  return [...base, ...extra.bienes];
+}
+
+const clientePorId = (id) => todosLosClientes().find((c) => c.id === id);
+const bienPorId = (id) => todosLosBienes().find((b) => b.id === id);
+
 // ---------- Utilidades ----------
-// Evita inyectar HTML escribiendo texto seguro
 function escapar(texto) {
   const div = document.createElement('div');
-  div.textContent = texto;
+  div.textContent = texto == null ? '' : String(texto);
   return div.innerHTML;
 }
 
-function clientePorId(id) {
-  return clientes.find((c) => c.id === id);
+function fechaLarga(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function bienPorId(id) {
-  return bienes.find((b) => b.id === id);
+function fechaHora(ts) {
+  return new Date(ts).toLocaleString('es-PE', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function mostrarMsg(el, texto, ok) {
@@ -152,282 +138,318 @@ function mostrarMsg(el, texto, ok) {
   }, 4000);
 }
 
-// ---------- Panel de control ----------
+function riesgoMaximo(alertas) {
+  if (alertas.some((a) => a.riesgo === 'alto')) return 'alto';
+  if (alertas.some((a) => a.riesgo === 'medio')) return 'medio';
+  if (alertas.some((a) => a.riesgo === 'bajo')) return 'bajo';
+  return '';
+}
+
+// ---------- Panel ----------
 function renderPanel() {
+  const clientes = todosLosClientes();
+  const bienes = todosLosBienes();
+  const alertas = extra.alertas;
+  const nFact = clientes.filter((c) => c.producto === 'factoring').length;
+  const nConf = clientes.filter((c) => c.producto === 'confirming').length;
+  const sinPartidas = clientes.filter((c) => !bienes.some((b) => b.clienteId === c.id)).length;
+
+  $('heroClientes').textContent = clientes.length;
+  $('heroFactoring').textContent = nFact;
+  $('heroConfirming').textContent = nConf;
+
   $('statClientes').textContent = clientes.length;
+  $('statFactoring').textContent = nFact;
+  $('statConfirming').textContent = nConf;
   $('statBienes').textContent = bienes.length;
+  $('statInscritos').textContent = bienes.filter((b) => b.alertaRegistral).length;
+  $('statPendientes').textContent = sinPartidas;
   $('statAlertas').textContent = alertas.length;
   $('statAlto').textContent = alertas.filter((a) => a.riesgo === 'alto').length;
   $('statMedio').textContent = alertas.filter((a) => a.riesgo === 'medio').length;
   $('statBajo').textContent = alertas.filter((a) => a.riesgo === 'bajo').length;
+
+  $('tabTodos').textContent = clientes.length;
+  $('tabFactoring').textContent = nFact;
+  $('tabConfirming').textContent = nConf;
 }
 
-// ---------- Clientes (lista compacta del paso 1) ----------
-function renderClientes() {
-  const cont = $('listaClientes');
+// ---------- Cartera ----------
+function renderCartera() {
+  const grid = $('carteraGrid');
+  const bienes = todosLosBienes();
+  const q = busqueda.trim().toLowerCase();
 
-  if (!clientes.length) {
-    cont.innerHTML = '<span class="mini-vacio">Aún no hay clientes registrados.</span>';
-    return;
-  }
+  const lista = todosLosClientes().filter((c) => {
+    if (filtro !== 'todos' && c.producto !== filtro) return false;
+    if (!q) return true;
+    return c.nombre.toLowerCase().includes(q) || String(c.ruc || '').includes(q);
+  });
 
-  cont.innerHTML = clientes
-    .map(
-      (c) => `
-      <div class="mini-item">
-        <div class="mini-info">
-          <strong>${escapar(c.nombre)}</strong>
-          <span class="mini-sub">${escapar(c.doc)}</span>
-        </div>
-        <button class="mini-x" data-rol="cliente" data-id="${c.id}" aria-label="Eliminar cliente">✕</button>
-      </div>`
-    )
-    .join('');
-}
+  $('carteraVacia').hidden = lista.length > 0;
 
-// ---------- Bienes (lista compacta del paso 2) ----------
-function renderBienes() {
-  const cont = $('listaBienes');
+  grid.innerHTML = lista
+    .map((c) => {
+      const susBienes = bienes.filter((b) => b.clienteId === c.id);
+      const susAlertas = extra.alertas.filter((a) => susBienes.some((b) => b.id === a.bienId));
+      const riesgo = riesgoMaximo(susAlertas);
+      const docs = c.documentos || {};
+      const nDocs = DOCUMENTOS.filter(([k]) => docs[k]).length;
 
-  if (!bienes.length) {
-    cont.innerHTML = '<span class="mini-vacio">Aún no hay bienes registrados.</span>';
-    return;
-  }
+      let estado;
+      if (riesgo) {
+        estado = `<span class="estado estado-${riesgo}">${RIESGO_ETIQUETA[riesgo]} · ${susAlertas.length} alerta(s)</span>`;
+      } else if (susBienes.length) {
+        estado = `<span class="estado estado-ok">En vigilancia · sin movimientos</span>`;
+      } else {
+        estado = `<span class="estado estado-pend">Pendiente: cargar partidas SUNARP</span>`;
+      }
 
-  cont.innerHTML = bienes
-    .map((b) => {
-      const tipo = TIPOS_BIEN[b.tipo] || { nombre: 'Bien', icono: '📦' };
-      const cliente = clientePorId(b.clienteId);
+      const bienesHtml = susBienes.length
+        ? `<ul class="bienes">${susBienes
+            .map(
+              (b) => `<li>
+                <span class="bien-tipo">${escapar(TIPOS_BIEN[b.tipo] || 'Bien')}</span>
+                <span class="bien-partida">${escapar(b.partida)}</span>
+                ${b.alertaRegistral ? '<span class="bien-ok" title="Inscrita en Alerta Registral SUNARP">Alerta Registral ✓</span>' : '<span class="bien-no">Sin Alerta Registral</span>'}
+                ${b.base ? '' : `<button class="mini-x" data-rol="bien" data-id="${escapar(b.id)}" aria-label="Quitar bien">✕</button>`}
+                ${b.desc ? `<span class="bien-desc">${escapar(b.desc)}</span>` : ''}
+              </li>`
+            )
+            .join('')}</ul>`
+        : `<p class="bienes-vacio">Aún no hay bienes registrados para este cliente.</p>`;
+
       return `
-      <div class="mini-item">
-        <div class="mini-info">
-          <strong>${tipo.icono} ${escapar(b.partida)}</strong>
-          <span class="mini-sub">${escapar(tipo.nombre)} · ${escapar(cliente ? cliente.nombre : 'Sin cliente')}</span>
+      <article class="cliente ${riesgo ? 'borde-' + riesgo : ''}">
+        <div class="cliente-top">
+          <span class="card-tag ${escapar(c.producto)}">${c.producto === 'confirming' ? 'Confirming' : 'Factoring'}</span>
+          ${c.demo ? '<span class="card-tag demo">Simulación</span>' : ''}
+          ${c.base ? '' : `<button class="mini-x" data-rol="cliente" data-id="${escapar(c.id)}" aria-label="Quitar cliente">✕</button>`}
         </div>
-        <button class="mini-x" data-rol="bien" data-id="${b.id}" aria-label="Eliminar bien">✕</button>
-      </div>`;
+        <h3>${escapar(c.nombre)}</h3>
+        <dl class="datos">
+          <div><dt>RUC</dt><dd>${escapar(c.ruc || '—')}</dd></div>
+          <div><dt>Partida PJ</dt><dd>${c.partidaPJ ? escapar(c.partidaPJ) + (c.oficina ? ' · ' + escapar(c.oficina) : '') : '—'}</dd></div>
+          <div><dt>Contrato</dt><dd>${fechaLarga(c.fechaContrato)}</dd></div>
+          <div><dt>Ubicación</dt><dd>${escapar(c.ubicacion || '—')}</dd></div>
+        </dl>
+        ${c.avales && c.avales.length ? `<p class="avales">${c.avales.map(escapar).join('<br />')}</p>` : ''}
+        ${c.nota ? `<p class="nota">${escapar(c.nota)}</p>` : ''}
+        ${
+          c.documentos
+            ? `<details class="docs">
+                <summary>Expediente: ${nDocs}/${DOCUMENTOS.length} documentos</summary>
+                <ul>${DOCUMENTOS.map(([k, t]) => `<li class="${docs[k] ? 'si' : 'no'}">${docs[k] ? '✓' : '—'} ${t}</li>`).join('')}</ul>
+              </details>`
+            : ''
+        }
+        <div class="vigilancia">
+          <div class="vigilancia-head">
+            <span>Bienes vigilados (${susBienes.length})</span>
+            ${estado}
+          </div>
+          ${bienesHtml}
+          <button type="button" class="btn btn-neutral btn-sm btn-block" data-agregar-bien="${escapar(c.id)}">+ Agregar partida</button>
+        </div>
+      </article>`;
     })
     .join('');
 }
 
-// ---------- Selects dependientes (cliente → bien) ----------
+// ---------- Selects ----------
 function llenarSelectClientes() {
-  const selects = [$('bienCliente'), $('alertaCliente')];
-
-  selects.forEach((sel) => {
+  const clientes = todosLosClientes();
+  [$('bienCliente'), $('alertaCliente')].forEach((sel) => {
     const previo = sel.value;
     sel.innerHTML = '<option value="">Selecciona un cliente…</option>';
-    clientes.forEach((c) => {
-      const op = document.createElement('option');
-      op.value = c.id;
-      op.textContent = c.nombre;
-      sel.appendChild(op);
+    ['factoring', 'confirming'].forEach((prod) => {
+      const grupo = document.createElement('optgroup');
+      grupo.label = prod === 'factoring' ? 'Factoring' : 'Confirming';
+      clientes
+        .filter((c) => c.producto === prod)
+        .forEach((c) => {
+          const op = document.createElement('option');
+          op.value = c.id;
+          op.textContent = c.nombre;
+          grupo.appendChild(op);
+        });
+      if (grupo.children.length) sel.appendChild(grupo);
     });
-    // Conserva la selección si el cliente sigue existiendo
     if (clientes.some((c) => c.id === previo)) sel.value = previo;
   });
-
   llenarSelectBienes();
 }
 
 function llenarSelectBienes() {
   const sel = $('alertaBien');
   const clienteId = $('alertaCliente').value;
-  const delCliente = bienes.filter((b) => b.clienteId === clienteId);
+  const delCliente = todosLosBienes().filter((b) => b.clienteId === clienteId);
 
-  sel.innerHTML = '<option value="">Selecciona un bien…</option>';
+  sel.innerHTML = delCliente.length
+    ? '<option value="">Selecciona un bien…</option>'
+    : `<option value="">${clienteId ? 'Este cliente aún no tiene bienes' : 'Selecciona un bien…'}</option>`;
   delCliente.forEach((b) => {
-    const tipo = TIPOS_BIEN[b.tipo] || { nombre: 'Bien', icono: '📦' };
     const op = document.createElement('option');
     op.value = b.id;
-    op.textContent = `${tipo.icono} ${b.partida}`;
+    op.textContent = `${TIPOS_BIEN[b.tipo] || 'Bien'} · ${b.partida}`;
     sel.appendChild(op);
   });
 }
 
- $('alertaCliente').addEventListener('change', llenarSelectBienes);
+$('alertaCliente').addEventListener('change', llenarSelectBienes);
 
-// ---------- Sugerencia automática de riesgo ----------
- $('alertaMov').addEventListener('change', () => {
-  const mov = $('alertaMov').value;
-  const sugerido = RIESGO_POR_MOVIMIENTO[mov];
+$('alertaMov').addEventListener('change', () => {
+  const sugerido = RIESGO_POR_MOVIMIENTO[$('alertaMov').value];
   const hint = $('riesgoHint');
-
   if (sugerido) {
     $('alertaRiesgo').value = sugerido;
-    const et = RIESGO_ETIQUETA[sugerido];
-    hint.textContent = `Sugerencia aplicada: ${et.icono} ${et.texto.toLowerCase()}. Puedes ajustarla si lo deseas.`;
+    hint.textContent = `Sugerencia aplicada: ${RIESGO_ETIQUETA[sugerido].toLowerCase()}. Puedes ajustarla.`;
   } else {
     hint.textContent = 'Define el nivel de riesgo manualmente.';
   }
 });
 
-// ---------- Alertas (lista principal) ----------
+// ---------- Alertas ----------
 function renderAlertas() {
   const list = $('listaAlertas');
-  const vacia = $('alertaVacia');
+  const ordenadas = [...extra.alertas].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  $('alertaVacia').style.display = ordenadas.length ? 'none' : 'block';
 
-  list.innerHTML = '';
-  vacia.style.display = alertas.length ? 'none' : 'block';
-
-  // Ordena del movimiento más reciente al más antiguo
-  const ordenadas = [...alertas].sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-  ordenadas.forEach((a) => {
-    const bien = bienPorId(a.bienId);
-    const cliente = bien ? clientePorId(bien.clienteId) : null;
-    const tipo = bien ? TIPOS_BIEN[bien.tipo] || { nombre: 'Bien', icono: '📦' } : null;
-    const et = RIESGO_ETIQUETA[a.riesgo] || RIESGO_ETIQUETA.medio;
-
-    const li = document.createElement('li');
-    li.className = `alert-item risk-${a.riesgo || 'medio'}`;
-    li.innerHTML = `
-      <div class="alert-info">
-        <div class="alert-top">
-          <span class="risk-badge ${a.riesgo}">${et.icono} ${et.texto}</span>
-          <span class="alert-date">🕒 ${escapar(a.fecha)}</span>
+  list.innerHTML = ordenadas
+    .map((a) => {
+      const bien = bienPorId(a.bienId);
+      const cliente = bien ? clientePorId(bien.clienteId) : null;
+      return `
+      <li class="alert-item risk-${escapar(a.riesgo)}">
+        <div class="alert-info">
+          <div class="alert-top">
+            <span class="risk-badge ${escapar(a.riesgo)}">${RIESGO_ETIQUETA[a.riesgo] || ''}</span>
+            ${a.demo ? '<span class="card-tag demo">Simulación</span>' : ''}
+            <span class="alert-date">${escapar(fechaHora(a.ts))}</span>
+          </div>
+          <span class="alert-cliente"><strong>${escapar(cliente ? cliente.nombre : 'Cliente eliminado')}</strong>
+            <span class="alert-doc">${cliente && cliente.ruc ? 'RUC ' + escapar(cliente.ruc) : ''}</span>
+          </span>
+          <span class="alert-partida">${bien ? `${escapar(TIPOS_BIEN[bien.tipo] || 'Bien')} · ${escapar(bien.partida)}` : 'Bien eliminado'}</span>
+          <span class="alert-mov">${escapar(MOVIMIENTOS[a.mov] || a.mov)}</span>
+          ${a.detalle ? `<span class="alert-detail">${escapar(a.detalle)}</span>` : ''}
         </div>
-        <span class="alert-cliente"><strong>${escapar(cliente ? cliente.nombre : 'Cliente eliminado')}</strong>
-          <span class="alert-doc">${escapar(cliente ? cliente.doc : '')}</span>
-        </span>
-        <span class="alert-partida">
-          ${bien ? `${tipo.icono} ${escapar(tipo.nombre)} · ${escapar(bien.partida)}` : 'Bien eliminado'}
-        </span>
-        <span class="alert-mov">📄 ${escapar(a.mov)}</span>
-        ${a.detalle ? `<span class="alert-detail">💬 ${escapar(a.detalle)}</span>` : ''}
-      </div>
-      <button class="alert-delete" data-id="${a.id}" aria-label="Eliminar alerta">✕</button>
-    `;
-    list.appendChild(li);
-  });
+        <button class="alert-delete" data-id="${escapar(a.id)}" aria-label="Eliminar alerta">✕</button>
+      </li>`;
+    })
+    .join('');
 }
 
 function renderTodo() {
   renderPanel();
-  renderClientes();
-  renderBienes();
+  renderCartera();
   llenarSelectClientes();
   renderAlertas();
 }
 
-// ---------- Eliminar (listas compactas y alertas) ----------
+// ---------- Filtros de cartera ----------
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    filtro = tab.dataset.filtro;
+    document.querySelectorAll('.tab').forEach((t) => {
+      t.classList.toggle('active', t === tab);
+      t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+    });
+    renderCartera();
+  });
+});
+
+$('buscarCliente').addEventListener('input', (e) => {
+  busqueda = e.target.value;
+  renderCartera();
+});
+
+// ---------- Clics generales (eliminar / agregar partida) ----------
 document.addEventListener('click', (e) => {
+  const agregar = e.target.closest('[data-agregar-bien]');
+  if (agregar) {
+    $('bienCliente').value = agregar.dataset.agregarBien;
+    $('registro').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => $('bienTipo').focus(), 500);
+    return;
+  }
+
   const btn = e.target.closest('.mini-x, .alert-delete');
   if (!btn) return;
+  const id = btn.dataset.id;
 
-  // ---- Eliminar una alerta ----
   if (btn.classList.contains('alert-delete')) {
-    const id = btn.dataset.id;
     if (!confirm('¿Eliminar esta alerta registral?')) return;
-    alertas = alertas.filter((a) => a.id !== id);
-    guardar();
-    renderTodo();
+    extra.alertas = extra.alertas.filter((a) => a.id !== id);
+  } else if (btn.dataset.rol === 'bien') {
+    const n = extra.alertas.filter((a) => a.bienId === id).length;
+    if (!confirm(`¿Quitar este bien?${n ? `\nTambién se eliminarán ${n} alerta(s).` : ''}`)) return;
+    extra.alertas = extra.alertas.filter((a) => a.bienId !== id);
+    extra.bienes = extra.bienes.filter((b) => b.id !== id);
+  } else if (btn.dataset.rol === 'cliente') {
+    const c = clientePorId(id);
+    if (!c || !confirm(`¿Quitar al cliente "${c.nombre}" y sus bienes y alertas?`)) return;
+    const idsBienes = extra.bienes.filter((b) => b.clienteId === id).map((b) => b.id);
+    extra.alertas = extra.alertas.filter((a) => !idsBienes.includes(a.bienId));
+    extra.bienes = extra.bienes.filter((b) => b.clienteId !== id);
+    extra.clientes = extra.clientes.filter((x) => x.id !== id);
+  } else {
     return;
   }
-
-  // ---- Eliminar un cliente (y sus bienes y alertas) ----
-  if (btn.dataset.rol === 'cliente') {
-    const id = btn.dataset.id;
-    const cliente = clientePorId(id);
-    if (!cliente) return;
-
-    const susBienes = bienes.filter((b) => b.clienteId === id);
-    const susAlertas = alertas.filter((a) =>
-      susBienes.some((b) => b.id === a.bienId)
-    );
-
-    let texto = `¿Eliminar al cliente "${cliente.nombre}"?`;
-    if (susBienes.length || susAlertas.length) {
-      texto += `\nTambién se eliminarán ${susBienes.length} bien(es) y ${susAlertas.length} alerta(s) asociados.`;
-    }
-    if (!confirm(texto)) return;
-
-    const idsBienes = susBienes.map((b) => b.id);
-    bienes = bienes.filter((b) => b.clienteId !== id);
-    alertas = alertas.filter((a) => !idsBienes.includes(a.bienId));
-    clientes = clientes.filter((c) => c.id !== id);
-    guardar();
-    renderTodo();
-    return;
-  }
-
-  // ---- Eliminar un bien (y sus alertas) ----
-  if (btn.dataset.rol === 'bien') {
-    const id = btn.dataset.id;
-    const bien = bienPorId(id);
-    if (!bien) return;
-
-    const susAlertas = alertas.filter((a) => a.bienId === id);
-    let texto = `¿Eliminar el bien "${bien.partida}"?`;
-    if (susAlertas.length) {
-      texto += `\nTambién se eliminarán ${susAlertas.length} alerta(s) asociadas.`;
-    }
-    if (!confirm(texto)) return;
-
-    alertas = alertas.filter((a) => a.bienId !== id);
-    bienes = bienes.filter((b) => b.id !== id);
-    guardar();
-    renderTodo();
-  }
+  guardar();
+  renderTodo();
 });
 
 // ---------- Formulario: cliente ----------
- $('formCliente').addEventListener('submit', (e) => {
+$('formCliente').addEventListener('submit', (e) => {
   e.preventDefault();
-
-  const nombre = $('cliNombre').value.trim();
-  const doc = $('cliDoc').value.trim();
+  const nombre = $('cliNombre').value.trim().toUpperCase();
+  const ruc = $('cliDoc').value.trim();
+  const producto = $('cliProducto').value;
   const msg = $('msgCliente');
 
-  if (!nombre || !doc) return;
-
-  // Evita duplicar clientes con el mismo RUC/DNI
-  if (clientes.some((c) => c.doc.toLowerCase() === doc.toLowerCase())) {
-    mostrarMsg(msg, '⚠️ Ya existe un cliente con ese RUC/DNI.', false);
+  if (!nombre || !/^\d{11}$/.test(ruc)) {
+    mostrarMsg(msg, 'El RUC debe tener 11 dígitos.', false);
+    return;
+  }
+  if (todosLosClientes().some((c) => c.ruc === ruc)) {
+    mostrarMsg(msg, 'Ya existe un cliente con ese RUC.', false);
     return;
   }
 
-  clientes.push({ id: uid(), nombre, doc });
+  extra.clientes.push({ id: uid(), producto, nombre, ruc });
   guardar();
   renderTodo();
   e.target.reset();
-  mostrarMsg(msg, '✅ Cliente registrado correctamente.', true);
+  mostrarMsg(msg, 'Cliente registrado. Ahora agrega sus bienes.', true);
 });
 
 // ---------- Formulario: bien ----------
- $('formBien').addEventListener('submit', (e) => {
+$('formBien').addEventListener('submit', (e) => {
   e.preventDefault();
-
   const clienteId = $('bienCliente').value;
   const tipo = $('bienTipo').value;
   const partida = $('bienPartida').value.trim();
   const desc = $('bienDesc').value.trim();
+  const alertaRegistral = $('bienInscrito').checked;
   const msg = $('msgBien');
 
   if (!clienteId || !tipo || !partida) return;
-
-  // Evita registrar dos veces la misma partida para el mismo cliente
-  const duplicado = bienes.some(
-    (b) =>
-      b.clienteId === clienteId &&
-      b.partida.toLowerCase() === partida.toLowerCase()
-  );
-  if (duplicado) {
-    mostrarMsg(msg, '⚠️ Esa partida ya está registrada para este cliente.', false);
+  if (todosLosBienes().some((b) => b.clienteId === clienteId && b.partida.toLowerCase() === partida.toLowerCase())) {
+    mostrarMsg(msg, 'Esa partida ya está registrada para este cliente.', false);
     return;
   }
 
-  bienes.push({ id: uid(), clienteId, tipo, partida, desc });
+  extra.bienes.push({ id: uid(), clienteId, tipo, partida, desc, alertaRegistral });
   guardar();
   renderTodo();
   e.target.reset();
-  mostrarMsg(msg, '✅ Bien registrado correctamente.', true);
+  mostrarMsg(msg, 'Bien registrado en la ficha del cliente.', true);
 });
 
 // ---------- Formulario: alerta ----------
- $('formAlerta').addEventListener('submit', (e) => {
+$('formAlerta').addEventListener('submit', (e) => {
   e.preventDefault();
-
   const clienteId = $('alertaCliente').value;
   const bienId = $('alertaBien').value;
   const mov = $('alertaMov').value;
@@ -436,63 +458,58 @@ document.addEventListener('click', (e) => {
   const msg = $('msgAlerta');
 
   if (!clienteId || !bienId || !mov || !riesgo) return;
-
-  // Verifica que el bien pertenezca al cliente seleccionado
   const bien = bienPorId(bienId);
   if (!bien || bien.clienteId !== clienteId) {
-    mostrarMsg(msg, '⚠️ El bien debe pertenecer al cliente seleccionado.', false);
+    mostrarMsg(msg, 'El bien debe pertenecer al cliente seleccionado.', false);
     return;
   }
 
-  alertas.push({
-    id: uid(),
-    bienId,
-    mov,
-    riesgo,
-    detalle,
-    ts: Date.now(),
-    fecha: fechaAhora(),
-  });
+  extra.alertas.push({ id: uid(), bienId, mov, riesgo, detalle, ts: Date.now() });
   guardar();
   renderTodo();
   e.target.reset();
   $('riesgoHint').textContent = 'Se sugiere automáticamente según el movimiento.';
-  mostrarMsg(msg, '✅ Alerta registral creada correctamente.', true);
+  mostrarMsg(msg, 'Alerta registral creada.', true);
 });
 
-// ---------- Botones de la sección de alertas ----------
- $('btnBorrar').addEventListener('click', () => {
-  if (!clientes.length && !bienes.length && !alertas.length) {
-    alert('No hay datos que borrar.');
+// ---------- Simulación (empresa ficticia, claramente marcada) ----------
+$('btnSimulacion').addEventListener('click', () => {
+  if (extra.clientes.some((c) => c.demo)) {
+    $('alertas').scrollIntoView({ behavior: 'smooth' });
     return;
   }
-  if (
-    confirm(
-      'Se eliminarán TODOS los clientes, bienes y alertas guardados en este navegador. ¿Deseas continuar?'
-    )
-  ) {
-    clientes = [];
-    bienes = [];
-    alertas = [];
-    guardar();
-    renderTodo();
-  }
+  const ahora = Date.now();
+  const hace = (h) => ahora - h * 3600 * 1000;
+  const cid = 'demo-cliente';
+
+  extra.clientes.push({
+    id: cid,
+    demo: true,
+    producto: 'factoring',
+    nombre: 'EMPRESA DEMO S.A.C. (FICTICIA)',
+    ruc: '20000000001',
+    ubicacion: 'Ejemplo para la presentación',
+    avales: ['1 aval persona natural (ficticio)'],
+  });
+  extra.bienes.push(
+    { id: 'demo-b1', clienteId: cid, demo: true, tipo: 'predio', partida: 'Partida 00000001', desc: 'Local comercial (ejemplo)', alertaRegistral: true },
+    { id: 'demo-b2', clienteId: cid, demo: true, tipo: 'vehiculo', partida: 'Placa XXX-001', desc: 'Camión (ejemplo)', alertaRegistral: true }
+  );
+  extra.alertas.push(
+    { id: uid(), demo: true, bienId: 'demo-b1', mov: 'venta', riesgo: 'alto', detalle: 'SUNARP avisó la presentación de una compraventa a favor de un tercero.', ts: hace(3) },
+    { id: uid(), demo: true, bienId: 'demo-b2', mov: 'garantia', riesgo: 'medio', detalle: 'Se solicitó inscribir una garantía mobiliaria sobre el vehículo.', ts: hace(30) },
+    { id: uid(), demo: true, bienId: 'demo-b1', mov: 'anotacion', riesgo: 'bajo', detalle: 'Anotación de una solicitud de publicidad registral.', ts: hace(96) }
+  );
+  guardar();
+  renderTodo();
+  $('alertas').scrollIntoView({ behavior: 'smooth' });
 });
 
- $('btnEjemplo').addEventListener('click', () => {
-  if (!clientes.length && !bienes.length && !alertas.length) {
-    cargarDatosDeEjemplo();
-    renderTodo();
-    return;
-  }
-  if (
-    confirm(
-      'Se reemplazarán los datos actuales por los datos de ejemplo. ¿Deseas continuar?'
-    )
-  ) {
-    cargarDatosDeEjemplo();
-    renderTodo();
-  }
+$('btnReiniciar').addEventListener('click', () => {
+  if (!confirm('Se borrarán los clientes, bienes y alertas agregados en este navegador (la cartera base se mantiene). ¿Continuar?')) return;
+  extra = { clientes: [], bienes: [], alertas: [] };
+  guardar();
+  renderTodo();
 });
 
 // ---------- Primera carga ----------

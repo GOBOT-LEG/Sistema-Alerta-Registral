@@ -9,13 +9,19 @@ Página web básica para un **sistema de monitoreo y alertas de movimientos regi
 
 ```
 sistema-alerta-registral/
-├── index.html        → Página principal (estructura y contenido)
-├── css/
-│   └── styles.css    → Estilos visuales (colores, tamaños, responsive)
-├── js/
-│   └── script.js     → Lógica (menú móvil, formulario y alertas demo)
-└── README.md         → Este archivo
+├── index.html             → Página principal (estructura y contenido)
+├── styles.css             → Estilos (colores del logo de Global Factoring)
+├── clientes.js            → Cartera de clientes factoring/confirming y sus bienes
+├── script.js              → Lógica (panel, cartera, registro y alertas)
+├── assets/logo-global.png → Logo de la empresa
+└── README.md              → Este archivo
 ```
+
+### Cómo agregar clientes o partidas SUNARP
+Abre `clientes.js`. Cada cliente es un bloque `{ ... }`. Para registrar sus bienes,
+llena la lista `bienes` del cliente (las instrucciones están al inicio del archivo).
+Los bienes y alertas que se agregan desde la página se guardan solo en ese navegador;
+lo que va en `clientes.js` lo ve todo el equipo.
 
 ---
 
